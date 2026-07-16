@@ -53,18 +53,49 @@ function handleFile(file) {
     alert("Зөвхөн зургийн файл сонгоно уу (JPG, PNG, WEBP).");
     return;
   }
+
   const reader = new FileReader();
   reader.onload = () => {
-    photoDataUrl = reader.result;
-    uploadPreview.src = photoDataUrl;
-    uploadPreview.hidden = false;
-    uploadEmpty.hidden = true;
-    uploadConfirm.hidden = false;
+    resizeImage(reader.result, 1024, 0.85, (resizedDataUrl) => {
+      photoDataUrl = resizedDataUrl;
+      uploadPreview.src = photoDataUrl;
+      uploadPreview.hidden = false;
+      uploadEmpty.hidden = true;
+      uploadConfirm.hidden = false;
+    });
   };
   reader.onerror = () => {
     alert("Зургийг уншихад алдаа гарлаа. Дахин сонгож үзнэ үү.");
   };
   reader.readAsDataURL(file);
+}
+
+// Зургийг дээд тал нь maxDim пиксель урттай, JPEG хэлбэрт хувиргаж хэмжээг
+// эрс багасгана. Ингэснээр илгээх дата хөнгөн болж, Netlify function руу
+// хурдан хүрч, хугацааны болон хэмжээний хязгаарт баригдахгүй.
+function resizeImage(dataUrl, maxDim, quality, callback) {
+  const img = new Image();
+  img.onload = () => {
+    let { width, height } = img;
+    if (width > height && width > maxDim) {
+      height = Math.round((height * maxDim) / width);
+      width = maxDim;
+    } else if (height > maxDim) {
+      width = Math.round((width * maxDim) / height);
+      height = maxDim;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, width, height);
+    callback(canvas.toDataURL("image/jpeg", quality));
+  };
+  img.onerror = () => {
+    // Хэрэв ямар нэг шалтгаанаар багасгаж чадахгүй бол эх зургийг ашиглана
+    callback(dataUrl);
+  };
+  img.src = dataUrl;
 }
 
 // ---------- form submit ----------
@@ -99,11 +130,25 @@ async function generate(childName, photoBase64) {
 
   try {
     // 1) Background function-ыг эхлүүлнэ (10 сек хугацааны хязгаараас чөлөөтэй)
-    const startRes = await fetch("/.netlify/functions/start-generation-background", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jobId, childName, photoBase64, storyId: STORY_ID }),
-    });
+    const startController = new AbortController();
+    const startTimeout = setTimeout(() => startController.abort(), 20000);
+
+    let startRes;
+    try {
+      startRes = await fetch("/.netlify/functions/start-generation-background", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId, childName, photoBase64, storyId: STORY_ID }),
+        signal: startController.signal,
+      });
+    } catch (fetchErr) {
+      if (fetchErr.name === "AbortError") {
+        throw new Error("Эхлүүлэх дуудлага хэт удаж байна (сүлжээ удаан байж магадгүй). Дахин оролдоно уу.");
+      }
+      throw new Error(`Сүлжээний алдаа: ${fetchErr.message}`);
+    } finally {
+      clearTimeout(startTimeout);
+    }
 
     if (!startRes.ok) {
       throw new Error(`Эхлүүлэх дуудлага амжилтгүй боллоо (${startRes.status}). Дахин оролдоно уу.`);
