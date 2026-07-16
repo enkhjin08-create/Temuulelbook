@@ -65,6 +65,9 @@ exports.handler = async (event) => {
           ],
         },
       ],
+      config: {
+        responseModalities: ["TEXT", "IMAGE"],
+      },
     });
 
     const parts = response?.candidates?.[0]?.content?.parts || [];
