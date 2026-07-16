@@ -267,6 +267,20 @@ input[type="text"]:focus {
   min-height: 180px;
   object-fit: cover;
 }
+.upload-confirm {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--sage);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  box-shadow: 0 6px 14px rgba(46,34,71,0.25);
+}
 
 .btn-generate {
   font-family: var(--font-display);

@@ -2,6 +2,7 @@ const uploadBox = document.getElementById("uploadBox");
 const photoInput = document.getElementById("photoInput");
 const uploadEmpty = document.getElementById("uploadEmpty");
 const uploadPreview = document.getElementById("uploadPreview");
+const uploadConfirm = document.getElementById("uploadConfirm");
 
 const genForm = document.getElementById("genForm");
 const generateBtn = document.getElementById("generateBtn");
@@ -58,6 +59,10 @@ function handleFile(file) {
     uploadPreview.src = photoDataUrl;
     uploadPreview.hidden = false;
     uploadEmpty.hidden = true;
+    uploadConfirm.hidden = false;
+  };
+  reader.onerror = () => {
+    alert("Зургийг уншихад алдаа гарлаа. Дахин сонгож үзнэ үү.");
   };
   reader.readAsDataURL(file);
 }

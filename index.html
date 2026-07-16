@@ -53,18 +53,19 @@
         <input type="text" id="childName" name="childName" placeholder="Жишээ: Номин" required maxlength="40" />
       </label>
 
-      <label class="field">
+      <div class="field">
         <span class="field-label">Гэрэл зураг</span>
         <div class="upload-box" id="uploadBox">
-          <input type="file" id="photoInput" accept="image/png, image/jpeg, image/webp" hidden />
+          <input type="file" id="photoInput" name="photoInput" accept="image/png, image/jpeg, image/webp" hidden />
           <div class="upload-empty" id="uploadEmpty">
             <span class="upload-icon">📷</span>
             <span>Зураг сонгох эсвэл чирж оруулна уу</span>
             <span class="upload-hint">JPG, PNG · тодорхой, урд харсан зураг хамгийн сайн үр дүн өгнө</span>
           </div>
           <img id="uploadPreview" class="upload-preview" alt="" hidden />
+          <div class="upload-confirm" id="uploadConfirm" hidden>✓ Зураг сонгогдлоо</div>
         </div>
-      </label>
+      </div>
 
       <button type="submit" id="generateBtn" class="btn-generate">
         <span class="btn-label">Үлгэрийн дүр болгох</span>
