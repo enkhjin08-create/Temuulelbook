@@ -11,13 +11,22 @@
 
 const { getStore } = require("@netlify/blobs");
 
+function getJobsStore() {
+  const siteID = process.env.BLOBS_SITE_ID;
+  const token = process.env.BLOBS_TOKEN;
+  if (siteID && token) {
+    return getStore({ name: "pixietale-jobs", siteID, token });
+  }
+  return getStore("pixietale-jobs");
+}
+
 exports.handler = async (event) => {
   const jobId = event.queryStringParameters && event.queryStringParameters.jobId;
   if (!jobId) {
     return respond(400, { error: "jobId шаардлагатай." });
   }
 
-  const store = getStore("pixietale-jobs");
+  const store = getJobsStore();
 
   try {
     const data = await store.get(jobId, { type: "json" });

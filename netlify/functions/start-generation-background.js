@@ -16,6 +16,15 @@ const { getStore } = require("@netlify/blobs");
 const { GoogleGenAI } = require("@google/genai");
 const { STORIES, DEFAULT_STORY_ID } = require("./stories");
 
+function getJobsStore() {
+  const siteID = process.env.BLOBS_SITE_ID;
+  const token = process.env.BLOBS_TOKEN;
+  if (siteID && token) {
+    return getStore({ name: "pixietale-jobs", siteID, token });
+  }
+  return getStore("pixietale-jobs");
+}
+
 exports.handler = async (event) => {
   let body;
   try {
@@ -29,7 +38,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: "jobId шаардлагатай" };
   }
 
-  const store = getStore("pixietale-jobs");
+  const store = getJobsStore();
 
   try {
     await store.setJSON(jobId, { status: "pending" });
