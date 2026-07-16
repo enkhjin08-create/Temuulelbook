@@ -21,9 +21,22 @@ const generatedCaption = document.getElementById("generatedCaption");
 
 const loadingText = document.getElementById("loadingText");
 
+const pagesGallery = document.getElementById("pagesGallery");
+const nextPageArea = document.getElementById("nextPageArea");
+const nextPageBtn = document.getElementById("nextPageBtn");
+const nextPageHint = document.getElementById("nextPageHint");
+const storyDone = document.getElementById("storyDone");
+const pageCountEl = document.getElementById("pageCount");
+
 const STORY_ID = "trex-anhnii-uchral"; // энэ туршилтад ганц түүх ашиглаж байна
 
 let photoDataUrl = null;
+
+// Түүхийн явцын төлөв
+let currentChildName = null;
+let currentPageIndex = 0;
+let lastGeneratedImageBase64 = null;
+let lastAttempt = null; // { childName, referenceImageBase64, pageIndex } — "Дахин оролдох"-д ашиглана
 
 // ---------- photo upload ----------
 
@@ -113,18 +126,33 @@ genForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  await generate(childName, photoDataUrl);
+  // Шинэ захиалга эхэлж байгаа тул өмнөх хуудсуудын явцыг цэвэрлэнэ
+  pagesGallery.innerHTML = "";
+  nextPageArea.hidden = true;
+  storyDone.hidden = true;
+  currentChildName = childName;
+  currentPageIndex = 0;
+
+  await generate(childName, photoDataUrl, 0);
 });
 
 retryBtn.addEventListener("click", () => {
-  const childName = childNameInput.value.trim();
-  if (childName && photoDataUrl) generate(childName, photoDataUrl);
+  if (!lastAttempt) return;
+  generate(lastAttempt.childName, lastAttempt.referenceImageBase64, lastAttempt.pageIndex);
 });
 
-async function generate(childName, photoBase64) {
+nextPageBtn.addEventListener("click", () => {
+  if (!lastGeneratedImageBase64 || !currentChildName) return;
+  generate(currentChildName, lastGeneratedImageBase64, currentPageIndex + 1);
+});
+
+async function generate(childName, referenceImageBase64, pageIndex) {
+  lastAttempt = { childName, referenceImageBase64, pageIndex };
+
   setState("loading");
   generateBtn.disabled = true;
-  loadingText.textContent = "Түүхийг зурж байна…";
+  nextPageBtn.disabled = true;
+  loadingText.textContent = pageIndex === 0 ? "Түүхийг зурж байна…" : "Дараагийн хуудсыг зурж байна…";
 
   // Клиент талын timeout: сервер 26 секундэд хаагддаг тул бага зэрэг илүү
   // хугацаа өгөөд, хэтэрвэл тодорхой алдаа харуулна.
@@ -137,7 +165,7 @@ async function generate(childName, photoBase64) {
       res = await fetch("/.netlify/functions/generate-character", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ childName, photoBase64, storyId: STORY_ID }),
+        body: JSON.stringify({ childName, photoBase64: referenceImageBase64, storyId: STORY_ID, pageIndex }),
         signal: controller.signal,
       });
     } catch (fetchErr) {
@@ -159,17 +187,50 @@ async function generate(childName, photoBase64) {
       throw new Error((data.error || "Тодорхойгүй алдаа гарлаа.") + detail);
     }
 
-    originalImg.src = photoBase64;
-    generatedImg.src = data.imageBase64;
-    generatedCaption.textContent = `${childName} — үлгэрийн дүр`;
-    setState("result");
+    currentChildName = childName;
+    currentPageIndex = data.pageIndex;
+    lastGeneratedImageBase64 = data.imageBase64;
+
+    if (pageIndex === 0) {
+      originalImg.src = referenceImageBase64;
+      generatedImg.src = data.imageBase64;
+      generatedCaption.textContent = `${childName} — 1-р хуудас`;
+      setState("result");
+    } else {
+      addPageToGallery(data.imageBase64, pageIndex + 1);
+      setState("result"); // resultPair аль хэдийн харагдаж байгаа тул төлөв өөрчлөгдөхгүй ч аюулгүй
+    }
+
+    if (data.isLastPage) {
+      nextPageArea.hidden = true;
+      storyDone.hidden = false;
+      pageCountEl.textContent = String(pageIndex + 1);
+    } else {
+      nextPageArea.hidden = false;
+      storyDone.hidden = true;
+      nextPageHint.textContent = "Одоогийн дүрээ ашиглаад, түүхийн дараагийн мөчийг зурна";
+    }
   } catch (err) {
     errorDetail.textContent = err.message || "Дахин оролдоно уу.";
     setState("error");
   } finally {
     clearTimeout(timeoutId);
     generateBtn.disabled = false;
+    nextPageBtn.disabled = false;
   }
+}
+
+function addPageToGallery(imageBase64, pageNumber) {
+  const figure = document.createElement("figure");
+  figure.className = "polaroid generated";
+  const img = document.createElement("img");
+  img.src = imageBase64;
+  img.alt = `Хуудас ${pageNumber}`;
+  const caption = document.createElement("figcaption");
+  caption.textContent = `${pageNumber}-р хуудас`;
+  figure.appendChild(img);
+  figure.appendChild(caption);
+  pagesGallery.appendChild(figure);
 }
 
 function setState(state) {
