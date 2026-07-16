@@ -105,21 +105,42 @@ async function generate(childName, photoBase64) {
     loadingText.textContent = loadingMessages[mi];
   }, 3500);
 
+  const jobId = (crypto.randomUUID ? crypto.randomUUID() : `job-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
   try {
-    const res = await fetch("/.netlify/functions/generate-character", {
+    // 1) Background function-ыг эхлүүлнэ (10 сек хугацааны хязгаараас чөлөөтэй)
+    await fetch("/.netlify/functions/start-generation-background", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ childName, photoBase64, storyId: STORY_ID }),
+      body: JSON.stringify({ jobId, childName, photoBase64, storyId: STORY_ID }),
     });
 
-    const data = await res.json();
+    // 2) 2 секунд тутам үр дүнг шалгана, дээд тал нь ~90 секунд хүлээнэ
+    const maxAttempts = 45;
+    let result = null;
 
-    if (!res.ok) {
-      throw new Error(data.error || "Тодорхойгүй алдаа гарлаа.");
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await sleep(2000);
+
+      const res = await fetch(`/.netlify/functions/check-generation?jobId=${encodeURIComponent(jobId)}`);
+      const data = await res.json();
+
+      if (data.status === "done") {
+        result = data;
+        break;
+      }
+      if (data.status === "error") {
+        throw new Error(data.error || "Тодорхойгүй алдаа гарлаа.");
+      }
+      // status === "pending" бол үргэлжлүүлж хүлээнэ
+    }
+
+    if (!result) {
+      throw new Error("Хугацаа хэтэрлээ. Дахин оролдоно уу.");
     }
 
     originalImg.src = photoBase64;
-    generatedImg.src = data.imageBase64;
+    generatedImg.src = result.imageBase64;
     generatedCaption.textContent = `${childName} — үлгэрийн дүр`;
     setState("result");
   } catch (err) {
@@ -129,6 +150,10 @@ async function generate(childName, photoBase64) {
     clearInterval(loadingTimer);
     generateBtn.disabled = false;
   }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function setState(state) {
