@@ -41,7 +41,7 @@ exports.handler = async (event) => {
   const store = getJobsStore();
 
   try {
-    await store.setJSON(jobId, { status: "pending" });
+    await store.setJSON(jobId, { status: "started" });
 
     if (!childName || !photoBase64) {
       await store.setJSON(jobId, { status: "error", error: "Нэр эсвэл зураг дутуу байна." });
@@ -65,6 +65,8 @@ exports.handler = async (event) => {
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+    await store.setJSON(jobId, { status: "calling-gemini" });
+
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-image",
       contents: [
@@ -80,6 +82,8 @@ exports.handler = async (event) => {
         responseModalities: ["TEXT", "IMAGE"],
       },
     });
+
+    await store.setJSON(jobId, { status: "gemini-responded" });
 
     const parts = response?.candidates?.[0]?.content?.parts || [];
     const imagePart = parts.find((p) => p.inlineData);
