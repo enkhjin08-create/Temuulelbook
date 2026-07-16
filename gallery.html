@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pixietale — Generate хийсэн зургууд</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<style>
+  .gallery-main {
+    max-width: 1100px;
+  }
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 18px;
+    margin-top: 30px;
+  }
+  .gallery-card {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: 10px 10px 14px;
+    box-shadow: var(--shadow-soft);
+    text-align: center;
+  }
+  .gallery-card img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+    background: var(--cream-2);
+  }
+  .gallery-card figcaption {
+    margin-top: 8px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--plum);
+  }
+  .gallery-card .gallery-meta {
+    font-size: 11px;
+    color: rgba(74,58,107,0.6);
+    margin-top: 2px;
+  }
+  .gallery-empty, .gallery-loading, .gallery-error {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--plum-soft);
+  }
+  .back-link {
+    display: inline-block;
+    margin-top: 8px;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--coral);
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="sky">
+  <span class="star s1">✦</span>
+  <span class="star s2">✧</span>
+  <span class="star s3">✦</span>
+  <span class="star s4">✧</span>
+  <span class="star s5">✦</span>
+</div>
+
+<header class="topbar">
+  <div class="logo">Pixie<span>tale</span></div>
+  <div class="topbar-badge">Gallery</div>
+</header>
+
+<main class="gallery-main">
+  <section class="hero">
+    <p class="eyebrow">Дотоод хэрэгсэл</p>
+    <h1>Generate хийсэн <em>бүх зургууд</em></h1>
+    <p class="hero-sub">Туршилтын явцад үүссэн бүх зураг эндээс харагдана.</p>
+    <a class="back-link" href="/">← Үлгэрийн дүр болгох хуудас руу буцах</a>
+  </section>
+
+  <div id="galleryLoading" class="gallery-loading">Ачааллаж байна…</div>
+  <div id="galleryEmpty" class="gallery-empty" hidden>Одоогоор generate хийсэн зураг алга.</div>
+  <div id="galleryError" class="gallery-error" hidden></div>
+  <div id="galleryGrid" class="gallery-grid"></div>
+</main>
+
+<footer>
+  <p>Pixietale — дотоод туршилтын хэрэгсэл</p>
+</footer>
+
+<script>
+const grid = document.getElementById("galleryGrid");
+const loadingEl = document.getElementById("galleryLoading");
+const emptyEl = document.getElementById("galleryEmpty");
+const errorEl = document.getElementById("galleryError");
+
+const PAGE_LABELS = { 0: "1-р хуудас", 1: "2-р хуудас", 2: "3-р хуудас" };
+
+async function loadGallery() {
+  try {
+    const res = await fetch("/.netlify/functions/gallery-list");
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Тодорхойгүй алдаа гарлаа.");
+    }
+
+    loadingEl.hidden = true;
+
+    if (!data.items || data.items.length === 0) {
+      emptyEl.hidden = false;
+      return;
+    }
+
+    data.items.forEach((item) => {
+      const card = document.createElement("figure");
+      card.className = "gallery-card";
+
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = `/.netlify/functions/gallery-image?id=${encodeURIComponent(item.id)}`;
+      img.alt = item.childName || "generate хийсэн зураг";
+
+      const caption = document.createElement("figcaption");
+      caption.textContent = item.childName || "(нэргүй)";
+
+      const meta = document.createElement("div");
+      meta.className = "gallery-meta";
+      const pageLabel = PAGE_LABELS[item.pageIndex] || `Хуудас ${Number(item.pageIndex) + 1}`;
+      const dateLabel = item.createdAt ? new Date(item.createdAt).toLocaleString("mn-MN") : "";
+      meta.textContent = `${pageLabel} · ${dateLabel}`;
+
+      card.appendChild(img);
+      card.appendChild(caption);
+      card.appendChild(meta);
+      grid.appendChild(card);
+    });
+  } catch (err) {
+    loadingEl.hidden = true;
+    errorEl.hidden = false;
+    errorEl.textContent = `Алдаа гарлаа: ${err.message}`;
+  }
+}
+
+loadGallery();
+</script>
+</body>
+</html>
