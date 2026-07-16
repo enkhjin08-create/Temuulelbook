@@ -38,7 +38,13 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: "jobId шаардлагатай" };
   }
 
-  const store = getJobsStore();
+  let store;
+  try {
+    store = getJobsStore();
+  } catch (storeErr) {
+    console.error("Failed to initialize Blobs store:", storeErr);
+    return { statusCode: 500, body: `Blobs init failed: ${String(storeErr && storeErr.message ? storeErr.message : storeErr)}` };
+  }
 
   try {
     await store.setJSON(jobId, { status: "started" });
