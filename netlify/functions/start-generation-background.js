@@ -13,8 +13,10 @@
 // тогтмол асууж (poll) байх ёстой.
 
 const { getStore } = require("@netlify/blobs");
-const { GoogleGenAI } = require("@google/genai");
 const { STORIES, DEFAULT_STORY_ID } = require("./stories");
+
+const GEMINI_ENDPOINT =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
 
 function getJobsStore() {
   const siteID = process.env.BLOBS_SITE_ID;
@@ -69,25 +71,33 @@ exports.handler = async (event) => {
 
     const prompt = story.buildPrompt(childName);
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
     await store.setJSON(jobId, { status: "calling-gemini" });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType, data: rawBase64 } },
-          ],
+    const geminiRes = await fetch(`${GEMINI_ENDPOINT}?key=${process.env.GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              { inlineData: { mimeType, data: rawBase64 } },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"],
         },
-      ],
-      config: {
-        responseModalities: ["TEXT", "IMAGE"],
-      },
+      }),
     });
+
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      throw new Error(`Gemini API алдаа (${geminiRes.status}): ${errText.slice(0, 500)}`);
+    }
+
+    const response = await geminiRes.json();
 
     await store.setJSON(jobId, { status: "gemini-responded" });
 
