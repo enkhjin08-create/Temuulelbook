@@ -124,91 +124,52 @@ retryBtn.addEventListener("click", () => {
 async function generate(childName, photoBase64) {
   setState("loading");
   generateBtn.disabled = true;
-  loadingText.textContent = "Захиалгыг эхлүүлж байна…";
+  loadingText.textContent = "Түүхийг зурж байна…";
 
-  const jobId = (crypto.randomUUID ? crypto.randomUUID() : `job-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  // Клиент талын timeout: сервер 26 секундэд хаагддаг тул бага зэрэг илүү
+  // хугацаа өгөөд, хэтэрвэл тодорхой алдаа харуулна.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 29000);
 
   try {
-    // 1) Background function-ыг эхлүүлнэ (10 сек хугацааны хязгаараас чөлөөтэй)
-    const startController = new AbortController();
-    const startTimeout = setTimeout(() => startController.abort(), 20000);
-
-    let startRes;
+    let res;
     try {
-      startRes = await fetch("/.netlify/functions/start-generation-background", {
+      res = await fetch("/.netlify/functions/generate-character", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId, childName, photoBase64, storyId: STORY_ID }),
-        signal: startController.signal,
+        body: JSON.stringify({ childName, photoBase64, storyId: STORY_ID }),
+        signal: controller.signal,
       });
     } catch (fetchErr) {
       if (fetchErr.name === "AbortError") {
-        throw new Error("Эхлүүлэх дуудлага хэт удаж байна (сүлжээ удаан байж магадгүй). Дахин оролдоно уу.");
+        throw new Error("Хугацаа хэтэрлээ (30 секунд). Gemini удаан хариулж байна, дахин оролдоно уу.");
       }
       throw new Error(`Сүлжээний алдаа: ${fetchErr.message}`);
-    } finally {
-      clearTimeout(startTimeout);
     }
 
-    if (!startRes.ok) {
-      let bodyText = "";
-      try {
-        bodyText = await startRes.text();
-      } catch (e) {
-        // ignore
-      }
-      throw new Error(`Эхлүүлэх дуудлага амжилтгүй боллоо (${startRes.status}): ${bodyText || "дэлгэрэнгүй мэдээлэл алга"}`);
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      throw new Error(`Серверийн хариу уншигдсангүй (${res.status}).`);
     }
 
-    // 2) 2 секунд тутам үр дүнг шалгана, дээд тал нь ~90 секунд хүлээнэ
-    const maxAttempts = 45;
-    let result = null;
-
-    const statusLabels = {
-      started: "Захиалгыг хүлээж авлаа…",
-      "calling-gemini": "Түүхийг зурж байна…",
-      "gemini-responded": "Дүрийг цэгцэлж байна…",
-      pending: "Түүхийг зурж байна…",
-    };
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      await sleep(2000);
-
-      const res = await fetch(`/.netlify/functions/check-generation?jobId=${encodeURIComponent(jobId)}`);
-      const data = await res.json();
-
-      if (statusLabels[data.status]) {
-        loadingText.textContent = statusLabels[data.status];
-      }
-
-      if (data.status === "done") {
-        result = data;
-        break;
-      }
-      if (data.status === "error") {
-        throw new Error(data.error || "Тодорхойгүй алдаа гарлаа.");
-      }
-      // pending/started/calling-gemini/gemini-responded бол үргэлжлүүлж хүлээнэ
-    }
-
-    if (!result) {
-      throw new Error("Хугацаа хэтэрлээ. Дахин оролдоно уу.");
+    if (!res.ok) {
+      const detail = data.detail ? ` — ${data.detail}` : "";
+      throw new Error((data.error || "Тодорхойгүй алдаа гарлаа.") + detail);
     }
 
     originalImg.src = photoBase64;
-    generatedImg.src = result.imageBase64;
+    generatedImg.src = data.imageBase64;
     generatedCaption.textContent = `${childName} — үлгэрийн дүр`;
     setState("result");
   } catch (err) {
     errorDetail.textContent = err.message || "Дахин оролдоно уу.";
     setState("error");
   } finally {
+    clearTimeout(timeoutId);
     generateBtn.disabled = false;
   }
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function setState(state) {
