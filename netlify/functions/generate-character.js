@@ -15,9 +15,19 @@
 //   { imageBase64: "data:image/png;base64,....", pageIndex, isLastPage }
 
 const { STORIES, DEFAULT_STORY_ID } = require("./stories");
+const { getStore } = require("@netlify/blobs");
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
+
+function getGalleryStore() {
+  const siteID = process.env.BLOBS_SITE_ID;
+  const token = process.env.BLOBS_TOKEN;
+  if (siteID && token) {
+    return getStore({ name: "pixietale-gallery", siteID, token });
+  }
+  return getStore("pixietale-gallery");
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -96,6 +106,24 @@ exports.handler = async (event) => {
 
     const outMime = imagePart.inlineData.mimeType || "image/png";
     const outData = imagePart.inlineData.data;
+
+    // Generate хийсэн зургийг gallery-д хадгална (алдаа гарвал ч гол хариуг
+    // тасалдуулахгүй — зөвхөн log-д бичээд өнгөрнө)
+    try {
+      const galleryId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const galleryStore = getGalleryStore();
+      await galleryStore.set(galleryId, outData, {
+        metadata: {
+          childName,
+          pageIndex,
+          storyId: story.id,
+          mimeType: outMime,
+          createdAt: new Date().toISOString(),
+        },
+      });
+    } catch (galleryErr) {
+      console.error("Gallery save failed:", galleryErr);
+    }
 
     return respond(200, {
       imageBase64: `data:${outMime};base64,${outData}`,
