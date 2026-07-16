@@ -6,10 +6,13 @@
 // секундийн хариу ихэнх тохиолдолд багтана.
 //
 // Хүлээн авах (POST JSON):
-//   { childName, photoBase64, storyId }
+//   { childName, photoBase64, storyId, pageIndex }
+//   - photoBase64: 0-р хуудсанд захиалагчийн бодит зураг, 1+ хуудсанд өмнөх
+//     generate хийсэн зураг (client талаас дамжуулна)
+//   - pageIndex: 0, 1, 2... — stories.js доторх pages массивын индекс
 //
 // Буцаах (200 JSON):
-//   { imageBase64: "data:image/png;base64,...." }
+//   { imageBase64: "data:image/png;base64,....", pageIndex, isLastPage }
 
 const { STORIES, DEFAULT_STORY_ID } = require("./stories");
 
@@ -29,6 +32,7 @@ exports.handler = async (event) => {
   }
 
   const { childName, photoBase64, storyId } = body;
+  const pageIndex = Number.isInteger(body.pageIndex) ? body.pageIndex : 0;
 
   if (!childName || typeof childName !== "string") {
     return respond(400, { error: "Хүүхдийн нэрийг оруулна уу." });
@@ -41,12 +45,14 @@ exports.handler = async (event) => {
   }
 
   const story = STORIES[storyId] || STORIES[DEFAULT_STORY_ID];
+  const page = story.pages[pageIndex] || story.pages[0];
+  const isLastPage = pageIndex >= story.pages.length - 1;
 
   const match = photoBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
   const mimeType = match ? match[1] : "image/jpeg";
   const rawBase64 = match ? match[2] : photoBase64;
 
-  const prompt = story.buildPrompt(childName);
+  const prompt = page.buildPrompt(childName);
 
   try {
     const geminiRes = await fetch(`${GEMINI_ENDPOINT}?key=${process.env.GEMINI_API_KEY}`, {
@@ -94,6 +100,8 @@ exports.handler = async (event) => {
     return respond(200, {
       imageBase64: `data:${outMime};base64,${outData}`,
       storyId: story.id,
+      pageIndex,
+      isLastPage,
     });
   } catch (err) {
     console.error("Gemini generation error:", err);
