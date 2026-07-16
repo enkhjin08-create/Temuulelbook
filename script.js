@@ -93,37 +93,42 @@ retryBtn.addEventListener("click", () => {
 async function generate(childName, photoBase64) {
   setState("loading");
   generateBtn.disabled = true;
-
-  const loadingMessages = [
-    "Түүхийг зурж байна…",
-    "Өнгийг сонгож байна…",
-    "Дүрийг амилуулж байна…",
-  ];
-  let mi = 0;
-  const loadingTimer = setInterval(() => {
-    mi = (mi + 1) % loadingMessages.length;
-    loadingText.textContent = loadingMessages[mi];
-  }, 3500);
+  loadingText.textContent = "Захиалгыг эхлүүлж байна…";
 
   const jobId = (crypto.randomUUID ? crypto.randomUUID() : `job-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
   try {
     // 1) Background function-ыг эхлүүлнэ (10 сек хугацааны хязгаараас чөлөөтэй)
-    await fetch("/.netlify/functions/start-generation-background", {
+    const startRes = await fetch("/.netlify/functions/start-generation-background", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jobId, childName, photoBase64, storyId: STORY_ID }),
     });
 
+    if (!startRes.ok) {
+      throw new Error(`Эхлүүлэх дуудлага амжилтгүй боллоо (${startRes.status}). Дахин оролдоно уу.`);
+    }
+
     // 2) 2 секунд тутам үр дүнг шалгана, дээд тал нь ~90 секунд хүлээнэ
     const maxAttempts = 45;
     let result = null;
+
+    const statusLabels = {
+      started: "Захиалгыг хүлээж авлаа…",
+      "calling-gemini": "Түүхийг зурж байна…",
+      "gemini-responded": "Дүрийг цэгцэлж байна…",
+      pending: "Түүхийг зурж байна…",
+    };
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await sleep(2000);
 
       const res = await fetch(`/.netlify/functions/check-generation?jobId=${encodeURIComponent(jobId)}`);
       const data = await res.json();
+
+      if (statusLabels[data.status]) {
+        loadingText.textContent = statusLabels[data.status];
+      }
 
       if (data.status === "done") {
         result = data;
@@ -132,7 +137,7 @@ async function generate(childName, photoBase64) {
       if (data.status === "error") {
         throw new Error(data.error || "Тодорхойгүй алдаа гарлаа.");
       }
-      // status === "pending" бол үргэлжлүүлж хүлээнэ
+      // pending/started/calling-gemini/gemini-responded бол үргэлжлүүлж хүлээнэ
     }
 
     if (!result) {
@@ -147,7 +152,6 @@ async function generate(childName, photoBase64) {
     errorDetail.textContent = err.message || "Дахин оролдоно уу.";
     setState("error");
   } finally {
-    clearInterval(loadingTimer);
     generateBtn.disabled = false;
   }
 }
