@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pixietale — Зургаа үлгэрийн дүр болгоё</title>
+<meta name="description" content="Хүүхдийнхээ зургийг оруулаад, түүнийг үлгэрийн гол дүр болгон амилуулна уу." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="sky">
+  <span class="star s1">✦</span>
+  <span class="star s2">✧</span>
+  <span class="star s3">✦</span>
+  <span class="star s4">✧</span>
+  <span class="star s5">✦</span>
+</div>
+
+<header class="topbar">
+  <div class="logo">Pixie<span>tale</span></div>
+  <div class="topbar-badge">Туршилтын хувилбар</div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <p class="eyebrow">Зөвхөн түүнд зориулав</p>
+    <h1>Хүүхдийнхээ зургийг<br><em>үлгэрийн дүр</em> болгоё</h1>
+    <p class="hero-sub">
+      Нэр болон нэг гэрэл зургийг оруулаарай — таны хүүхэд түүхийн гол баатар болон
+      номын хуудсан дээр амилах болно.
+    </p>
+  </section>
+
+  <section class="story-card">
+    <div class="story-cover" aria-hidden="true">🦕</div>
+    <div class="story-info">
+      <span class="story-label">Энэ удаагийн түүх</span>
+      <h2 id="storyTitle">Тэмүүлэл Т-Рекс хоёр танилцсан нь</h2>
+      <p>Халуун ногоон ширэнгэн дундуур, эелдэг Т-Рекстэй анх удаа танилцах гайхамшигт адал явдал.</p>
+    </div>
+  </section>
+
+  <section class="workspace">
+
+    <form id="genForm" class="gen-form">
+      <label class="field">
+        <span class="field-label">Хүүхдийн нэр</span>
+        <input type="text" id="childName" name="childName" placeholder="Жишээ: Номин" required maxlength="40" />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Гэрэл зураг</span>
+        <div class="upload-box" id="uploadBox">
+          <input type="file" id="photoInput" accept="image/png, image/jpeg, image/webp" hidden />
+          <div class="upload-empty" id="uploadEmpty">
+            <span class="upload-icon">📷</span>
+            <span>Зураг сонгох эсвэл чирж оруулна уу</span>
+            <span class="upload-hint">JPG, PNG · тодорхой, урд харсан зураг хамгийн сайн үр дүн өгнө</span>
+          </div>
+          <img id="uploadPreview" class="upload-preview" alt="" hidden />
+        </div>
+      </label>
+
+      <button type="submit" id="generateBtn" class="btn-generate">
+        <span class="btn-label">Үлгэрийн дүр болгох</span>
+        <span class="btn-spark">✦</span>
+      </button>
+
+      <p class="form-note">Энэ бол дотоод туршилт — үр дүн бүрийг Pixietale хянан баталгаажуулна.</p>
+    </form>
+
+    <div class="result-area" id="resultArea">
+
+      <div class="result-placeholder" id="resultPlaceholder">
+        <div class="placeholder-frame">
+          <span class="placeholder-glyph">✨</span>
+        </div>
+        <p>Үр дүн эндээс харагдана</p>
+      </div>
+
+      <div class="result-loading" id="resultLoading" hidden>
+        <div class="loading-book">📖</div>
+        <p id="loadingText">Түүхийг зурж байна…</p>
+        <p class="loading-hint">Дүрсийг Gemini AI зурж байна, 15–30 секунд орчим</p>
+      </div>
+
+      <div class="result-error" id="resultError" hidden>
+        <p class="error-title">Уучлаарай, алдаа гарлаа</p>
+        <p class="error-detail" id="errorDetail"></p>
+        <button type="button" class="btn-retry" id="retryBtn">Дахин оролдох</button>
+      </div>
+
+      <div class="result-pair" id="resultPair" hidden>
+        <figure class="polaroid original">
+          <img id="originalImg" alt="Оруулсан гэрэл зураг" />
+          <figcaption>Оруулсан зураг</figcaption>
+        </figure>
+
+        <div class="wand" aria-hidden="true">✦→</div>
+
+        <figure class="polaroid generated">
+          <img id="generatedImg" alt="Үлгэрийн дүр болсон зураг" />
+          <figcaption id="generatedCaption">Үлгэрийн дүр</figcaption>
+        </figure>
+      </div>
+
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  <p>Pixietale — дотоод туршилтын хэрэгсэл</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

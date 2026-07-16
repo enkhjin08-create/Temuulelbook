@@ -1,0 +1,12 @@
+{
+  "name": "pixietale-imagegen-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pixietale — child photo -> storybook character generator (Gemini image gen MVP)",
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@google/genai": "^2.12.0"
+  }
+}
