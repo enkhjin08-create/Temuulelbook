@@ -151,7 +151,13 @@ async function generate(childName, photoBase64) {
     }
 
     if (!startRes.ok) {
-      throw new Error(`Эхлүүлэх дуудлага амжилтгүй боллоо (${startRes.status}). Дахин оролдоно уу.`);
+      let bodyText = "";
+      try {
+        bodyText = await startRes.text();
+      } catch (e) {
+        // ignore
+      }
+      throw new Error(`Эхлүүлэх дуудлага амжилтгүй боллоо (${startRes.status}): ${bodyText || "дэлгэрэнгүй мэдээлэл алга"}`);
     }
 
     // 2) 2 секунд тутам үр дүнг шалгана, дээд тал нь ~90 секунд хүлээнэ
