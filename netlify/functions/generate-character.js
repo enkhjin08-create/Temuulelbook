@@ -81,6 +81,9 @@ exports.handler = async (event) => {
         ],
         generationConfig: {
           responseModalities: ["TEXT", "IMAGE"],
+          imageConfig: {
+            aspectRatio: "1:1",
+          },
         },
       }),
     });
