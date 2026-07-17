@@ -1,20 +1,19 @@
 // netlify/functions/generate-character.js
 //
-// ЭНГИЙН синхрон function (background function биш — тэр нь Netlify дээр
-// тогтворгүй/алдаатай гарсан тул хаясан). Personal/Pro план дээр function-ийн
-// синхрон хугацааны хязгаар 26 секунд байдаг тул, Gemini-ийн ердийн 15-25
-// секундийн хариу ихэнх тохиолдолд багтана.
+// ЭНГИЙН синхрон function. Personal/Pro план дээр function-ийн синхрон
+// хугацааны хязгаар 26 секунд байдаг тул, Gemini-ийн ердийн 15-25 секундийн
+// хариу ихэнх тохиолдолд багтана.
 //
 // Хүлээн авах (POST JSON):
-//   { childName, photoBase64, storyId, pageIndex }
+//   { childName, photoBase64, pageIndex, totalPages, sceneDescription }
 //   - photoBase64: 0-р хуудсанд захиалагчийн бодит зураг, 1+ хуудсанд өмнөх
 //     generate хийсэн зураг (client талаас дамжуулна)
-//   - pageIndex: 0, 1, 2... — stories.js доторх pages массивын индекс
+//   - sceneDescription: generate-story.js-ээс ирсэн тухайн хуудасны тайлбар
 //
 // Буцаах (200 JSON):
 //   { imageBase64: "data:image/png;base64,....", pageIndex, isLastPage }
 
-const { STORIES, DEFAULT_STORY_ID } = require("./stories");
+const { buildPagePrompt } = require("./stories");
 const { getStore } = require("@netlify/blobs");
 
 const GEMINI_ENDPOINT =
@@ -41,8 +40,9 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { childName, photoBase64, storyId } = body;
+  const { childName, photoBase64, sceneDescription } = body;
   const pageIndex = Number.isInteger(body.pageIndex) ? body.pageIndex : 0;
+  const totalPages = Number.isInteger(body.totalPages) ? body.totalPages : 1;
 
   if (!childName || typeof childName !== "string") {
     return respond(400, { error: "Хүүхдийн нэрийг оруулна уу." });
@@ -50,19 +50,20 @@ exports.handler = async (event) => {
   if (!photoBase64 || typeof photoBase64 !== "string") {
     return respond(400, { error: "Зураг илгээгдээгүй байна." });
   }
+  if (!sceneDescription || typeof sceneDescription !== "string") {
+    return respond(400, { error: "Хуудасны тайлбар (sceneDescription) дутуу байна." });
+  }
   if (!process.env.GEMINI_API_KEY) {
     return respond(500, { error: "Серверт GEMINI_API_KEY тохируулаагүй байна." });
   }
 
-  const story = STORIES[storyId] || STORIES[DEFAULT_STORY_ID];
-  const page = story.pages[pageIndex] || story.pages[0];
-  const isLastPage = pageIndex >= story.pages.length - 1;
+  const isLastPage = pageIndex >= totalPages - 1;
 
   const match = photoBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
   const mimeType = match ? match[1] : "image/jpeg";
   const rawBase64 = match ? match[2] : photoBase64;
 
-  const prompt = page.buildPrompt(childName);
+  const prompt = buildPagePrompt({ childName, sceneDescription, pageIndex, totalPages });
 
   try {
     const geminiRes = await fetch(`${GEMINI_ENDPOINT}?key=${process.env.GEMINI_API_KEY}`, {
@@ -116,7 +117,7 @@ exports.handler = async (event) => {
         metadata: {
           childName,
           pageIndex,
-          storyId: story.id,
+          totalPages,
           mimeType: outMime,
           createdAt: new Date().toISOString(),
         },
@@ -127,7 +128,6 @@ exports.handler = async (event) => {
 
     return respond(200, {
       imageBase64: `data:${outMime};base64,${outData}`,
-      storyId: story.id,
       pageIndex,
       isLastPage,
     });
