@@ -1,4 +1,4 @@
-# Pixietale — Зураг → Үлгэрийн дүр (туршилтын MVP)
+# Зөвхөн Түүнд Kids Book — Зураг → Үлгэрийн дүр (туршилтын MVP)
 
 Захиалагч өөрөө хүүхдийнхээ нэр, гэрэл зургийг оруулаад, Gemini AI ашиглан
 "Тэмүүлэл Т-Рекс хоёр танилцсан нь" түүхийн дүр рүү хувиргаж generate хийдэг
@@ -10,13 +10,23 @@
 ## Бүтэц
 
 ```
-index.html                            — гол хуудас
+index.html                            — гол хуудас (нэр, нас, сонирхол, зураг оруулна)
+gallery.html                          — generate хийсэн бүх зургийн цуглуулга
 style.css                             — дизайн
-script.js                             — upload, form, API дуудалт
-netlify/functions/generate-character.js  — Gemini рүү дуудлага хийдэг серверийн function
-netlify/functions/stories.js          — түүхийн жагсаалт, prompt (шинэ түүх энд нэмнэ)
+script.js                             — upload, форм, түүх зохиох + хуудас бүрийг зурах урсгал
+netlify/functions/generate-story.js   — нас/сонирхолд тохирсон 10 хуудас түүхийн тойм зохиодог (Gemini текст загвар)
+netlify/functions/generate-character.js  — тухайн хуудасны зургийг Gemini-ээр зурдаг function
+netlify/functions/gallery-list.js     — gallery-д хадгалагдсан зургуудын жагсаалт
+netlify/functions/gallery-image.js    — нэг зургийг шууд <img src> болгож өгдөг
+netlify/functions/stories.js          — зурган загварын (Ghibli-inspired) нийтлэг prompt бүтэц
 netlify.toml                          — Netlify тохиргоо
 ```
+
+**Урсгал:** Захиалагч нэр, нас, сонирхол, зургаа оруулна → `generate-story.js` эдгээрт тохирсон 10 хуудас түүхийн тойм (гарчиг + хуудас бүрийн монгол тайлбар + англи scene description) зохионо → эхний хуудсыг захиалагчийн бодит зургийг reference болгож зурна → "Дараагийн хуудас зурах" дарах бүрд өмнөх generate хийсэн зургаа reference болгож, тухайн хуудасны scene-ийг зурж, дүр тогтвортой хэвээр байлгана → 10 хуудас бүрэн дуустал үргэлжилнэ.
+
+**Gallery:** Generate хийгдэх бүр зураг Netlify Blobs-д автоматаар хадгалагддаг тул `/gallery.html` хуудаснаас бүх түүхэн зургийг цаг хугацаагаар нь эрэмбэлж харах боломжтой.
+
+**Тайлбар:** Эхэндээ 10 секундийн синхрон хугацааны хязгаарыг тойрохын тулд "background function + polling" загвар ашигласан ч, Netlify дээрх background function feature нь тогтворгүй/алдаатай (бетта, лог ч харагддаггүй) байсан тул хассан. Одоо **Personal/Pro план дээрх 26 секундийн синхрон хугацаанд шууд найдаж** байна — Gemini ихэвчлэн 15-25 секундэд хариулдаг тул ихэнх тохиолдолд амжина. Хэрэв цаашид байнга хугацаа хэтэрдэг бол, өөр найдвартай queue-архитектур (жишээ нь: гадны database ашигласан жинхэнэ background job) руу шилжих хэрэгтэй болно.
 
 ## Deploy хийх алхмууд
 
@@ -25,7 +35,7 @@ netlify.toml                          — Netlify тохиргоо
 2. "Create API key" дараад key-г хуулна
 
 ### 2. Netlify дээр deploy хийх
-1. Энэ folder-ыг GitHub repo болгож push хийнэ (эсвэл шууд Netlify дээр drag-drop хийж болно, гэхдээ function ажиллуулахын тулд Git-тэй холбох нь илүү найдвартай)
+1. Энэ folder-ыг GitHub repo болгож push хийнэ
 2. https://app.netlify.com → "Add new site" → "Import an existing project" → GitHub repo-гоо сонгоно
 3. Build settings нь netlify.toml-с автоматаар ирнэ (`npm install`, publish = ".")
 4. **Site settings → Environment variables** руу орж, `GEMINI_API_KEY` нэртэй хувьсагч нэмээд, API key-гээ тавина

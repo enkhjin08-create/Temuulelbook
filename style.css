@@ -80,8 +80,19 @@ html, body {
   font-weight: 700;
   font-size: 22px;
   color: var(--plum);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 .logo span { color: var(--coral); }
+.logo small {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sage);
+}
 .topbar-badge {
   font-family: var(--font-body);
   font-weight: 700;
@@ -181,6 +192,51 @@ main {
   font-size: 14.5px;
   color: var(--plum-soft);
   line-height: 1.5;
+}
+
+/* ---------- story outline ---------- */
+
+.story-outline {
+  list-style: none;
+  counter-reset: page-counter;
+  margin: 0 0 34px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.story-outline:empty { display: none; }
+.story-outline li {
+  counter-increment: page-counter;
+  background: var(--white);
+  border: 1px solid rgba(46,34,71,0.08);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: var(--plum-soft);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.story-outline li::before {
+  content: counter(page-counter);
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--coral);
+  flex: 0 0 auto;
+  min-width: 18px;
+}
+.story-outline li.active {
+  border-color: var(--gold);
+  background: var(--cream-2);
+  font-weight: 700;
+  color: var(--plum);
+}
+.story-outline li.done::after {
+  content: "✓";
+  margin-left: auto;
+  color: var(--sage);
+  font-weight: 700;
 }
 
 /* ---------- workspace ---------- */

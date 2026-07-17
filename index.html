@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Pixietale — Зургаа үлгэрийн дүр болгоё</title>
+<title>Зөвхөн Түүнд Kids Book — Хүүхдийн үлгэр</title>
 <meta name="description" content="Хүүхдийнхээ зургийг оруулаад, түүнийг үлгэрийн гол дүр болгон амилуулна уу." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,7 @@
 </div>
 
 <header class="topbar">
-  <div class="logo">Pixie<span>tale</span></div>
+  <div class="logo">Зөвхөн <span>Түүнд</span> <small>kids book</small></div>
   <a href="/gallery.html" class="topbar-badge" style="text-decoration:none;">Бүх зургууд →</a>
 </header>
 
@@ -36,14 +36,16 @@
     </p>
   </section>
 
-  <section class="story-card">
-    <div class="story-cover" aria-hidden="true">🦕</div>
+  <section class="story-card" id="storyCard">
+    <div class="story-cover" aria-hidden="true">📖</div>
     <div class="story-info">
       <span class="story-label">Энэ удаагийн түүх</span>
-      <h2 id="storyTitle">Тэмүүлэл Т-Рекс хоёр танилцсан нь</h2>
-      <p>Халуун ногоон ширэнгэн дундуур, эелдэг Т-Рекстэй анх удаа танилцах гайхамшигт адал явдал.</p>
+      <h2 id="storyTitle">Нэр, нас, сонирхлоо оруулаад эхэлнэ үү</h2>
+      <p id="storySubtitle">Хүүхдийн нас, сонирхолд тохирсон 10 хуудас түүхийг Gemini AI танд зохиож өгнө.</p>
     </div>
   </section>
+
+  <ol class="story-outline" id="storyOutline" hidden></ol>
 
   <section class="workspace">
 
@@ -51,6 +53,17 @@
       <label class="field">
         <span class="field-label">Хүүхдийн нэр</span>
         <input type="text" id="childName" name="childName" placeholder="Жишээ: Номин" required maxlength="40" />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Нас</span>
+        <input type="number" id="childAge" name="childAge" placeholder="Жишээ: 5" min="1" max="14" required />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Сонирхол</span>
+        <input type="text" id="childInterests" name="childInterests" placeholder="Жишээ: диносавр, сансар, машин" required maxlength="120" />
+        <span class="upload-hint">Таслалаар ялгаж 2-3 сонирхлоо бичээрэй</span>
       </label>
 
       <div class="field">
@@ -68,11 +81,11 @@
       </div>
 
       <button type="submit" id="generateBtn" class="btn-generate">
-        <span class="btn-label">Үлгэрийн дүр болгох</span>
+        <span class="btn-label">Түүх зохиож эхлэх</span>
         <span class="btn-spark">✦</span>
       </button>
 
-      <p class="form-note">Энэ бол дотоод туршилт — үр дүн бүрийг Pixietale хянан баталгаажуулна.</p>
+      <p class="form-note">Энэ бол дотоод туршилт — үр дүн бүрийг Зөвхөн Түүнд баг хянан баталгаажуулна.</p>
     </form>
 
     <div class="result-area" id="resultArea">
@@ -128,7 +141,7 @@
 </main>
 
 <footer>
-  <p>Pixietale — дотоод туршилтын хэрэгсэл</p>
+  <p>Зөвхөн Түүнд Kids Book — дотоод туршилтын хэрэгсэл</p>
 </footer>
 
 <script src="script.js"></script>

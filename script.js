@@ -7,6 +7,13 @@ const uploadConfirm = document.getElementById("uploadConfirm");
 const genForm = document.getElementById("genForm");
 const generateBtn = document.getElementById("generateBtn");
 const childNameInput = document.getElementById("childName");
+const childAgeInput = document.getElementById("childAge");
+const childInterestsInput = document.getElementById("childInterests");
+
+const storyCard = document.getElementById("storyCard");
+const storyTitleEl = document.getElementById("storyTitle");
+const storySubtitleEl = document.getElementById("storySubtitle");
+const storyOutlineEl = document.getElementById("storyOutline");
 
 const resultPlaceholder = document.getElementById("resultPlaceholder");
 const resultLoading = document.getElementById("resultLoading");
@@ -28,15 +35,14 @@ const nextPageHint = document.getElementById("nextPageHint");
 const storyDone = document.getElementById("storyDone");
 const pageCountEl = document.getElementById("pageCount");
 
-const STORY_ID = "trex-anhnii-uchral"; // энэ туршилтад ганц түүх ашиглаж байна
-
 let photoDataUrl = null;
 
 // Түүхийн явцын төлөв
 let currentChildName = null;
+let storyPages = []; // [{ caption, sceneDescription }, ...]
 let currentPageIndex = 0;
 let lastGeneratedImageBase64 = null;
-let lastAttempt = null; // { childName, referenceImageBase64, pageIndex } — "Дахин оролдох"-д ашиглана
+let lastAttempt = null; // { type: "story" } | { type: "page", childName, referenceImageBase64, pageIndex }
 
 // ---------- photo upload ----------
 
@@ -105,7 +111,6 @@ function resizeImage(dataUrl, maxDim, quality, callback) {
     callback(canvas.toDataURL("image/jpeg", quality));
   };
   img.onerror = () => {
-    // Хэрэв ямар нэг шалтгаанаар багасгаж чадахгүй бол эх зургийг ашиглана
     callback(dataUrl);
   };
   img.src = dataUrl;
@@ -117,45 +122,132 @@ genForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const childName = childNameInput.value.trim();
-  if (!childName) {
-    childNameInput.focus();
-    return;
-  }
+  const age = childAgeInput.value.trim();
+  const interests = childInterestsInput.value.trim();
+
+  if (!childName) { childNameInput.focus(); return; }
+  if (!age) { childAgeInput.focus(); return; }
+  if (!interests) { childInterestsInput.focus(); return; }
   if (!photoDataUrl) {
     alert("Эхлээд хүүхдийн зургаа оруулна уу.");
     return;
   }
 
-  // Шинэ захиалга эхэлж байгаа тул өмнөх хуудсуудын явцыг цэвэрлэнэ
+  // Шинэ захиалга эхэлж байгаа тул өмнөх явцыг цэвэрлэнэ
   pagesGallery.innerHTML = "";
+  storyOutlineEl.innerHTML = "";
+  storyOutlineEl.hidden = true;
   nextPageArea.hidden = true;
   storyDone.hidden = true;
   currentChildName = childName;
+  storyPages = [];
   currentPageIndex = 0;
 
-  await generate(childName, photoDataUrl, 0);
+  await composeStory(childName, age, interests);
 });
 
 retryBtn.addEventListener("click", () => {
   if (!lastAttempt) return;
-  generate(lastAttempt.childName, lastAttempt.referenceImageBase64, lastAttempt.pageIndex);
+  if (lastAttempt.type === "story") {
+    composeStory(lastAttempt.childName, lastAttempt.age, lastAttempt.interests);
+  } else if (lastAttempt.type === "page") {
+    generatePage(lastAttempt.childName, lastAttempt.referenceImageBase64, lastAttempt.pageIndex);
+  }
 });
 
 nextPageBtn.addEventListener("click", () => {
   if (!lastGeneratedImageBase64 || !currentChildName) return;
-  generate(currentChildName, lastGeneratedImageBase64, currentPageIndex + 1);
+  generatePage(currentChildName, lastGeneratedImageBase64, currentPageIndex + 1);
 });
 
-async function generate(childName, referenceImageBase64, pageIndex) {
-  lastAttempt = { childName, referenceImageBase64, pageIndex };
+// ---------- 1) түүхийн тойм зохиох ----------
+
+async function composeStory(childName, age, interests) {
+  lastAttempt = { type: "story", childName, age, interests };
+
+  setState("loading");
+  generateBtn.disabled = true;
+  loadingText.textContent = "Үлгэрээ зохиож байна…";
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 29000);
+
+  try {
+    let res;
+    try {
+      res = await fetch("/.netlify/functions/generate-story", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ childName, age, interests }),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      if (fetchErr.name === "AbortError") {
+        throw new Error("Хугацаа хэтэрлээ. Дахин оролдоно уу.");
+      }
+      throw new Error(`Сүлжээний алдаа: ${fetchErr.message}`);
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      throw new Error(`Серверийн хариу уншигдсангүй (${res.status}).`);
+    }
+
+    if (!res.ok) {
+      const detail = data.detail ? ` — ${data.detail}` : "";
+      throw new Error((data.error || "Тодорхойгүй алдаа гарлаа.") + detail);
+    }
+
+    storyPages = data.pages;
+    renderStoryCard(data.title, storyPages.length);
+    renderOutline(storyPages, 0);
+
+    // Түүхийн тойм бэлэн болмогц эхний хуудсыг шууд зурж эхэлнэ
+    await generatePage(childName, photoDataUrl, 0);
+  } catch (err) {
+    errorDetail.textContent = err.message || "Дахин оролдоно уу.";
+    setState("error");
+    generateBtn.disabled = false;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function renderStoryCard(title, pageCount) {
+  storyTitleEl.textContent = title;
+  storySubtitleEl.textContent = `${pageCount} хуудас түүх бэлэн боллоо`;
+}
+
+function renderOutline(pages, activeIndex) {
+  storyOutlineEl.hidden = false;
+  storyOutlineEl.innerHTML = "";
+  pages.forEach((p, i) => {
+    const li = document.createElement("li");
+    li.textContent = p.caption;
+    if (i === activeIndex) li.classList.add("active");
+    if (i < activeIndex) li.classList.add("done");
+    storyOutlineEl.appendChild(li);
+  });
+}
+
+// ---------- 2) хуудас бүрийг зурах ----------
+
+async function generatePage(childName, referenceImageBase64, pageIndex) {
+  const page = storyPages[pageIndex];
+  if (!page) return;
+
+  lastAttempt = { type: "page", childName, referenceImageBase64, pageIndex };
 
   setState("loading");
   generateBtn.disabled = true;
   nextPageBtn.disabled = true;
-  loadingText.textContent = pageIndex === 0 ? "Түүхийг зурж байна…" : "Дараагийн хуудсыг зурж байна…";
+  loadingText.textContent = pageIndex === 0
+    ? "1-р хуудсыг зурж байна…"
+    : `${pageIndex + 1}-р хуудсыг зурж байна…`;
+  renderOutline(storyPages, pageIndex);
 
-  // Клиент талын timeout: сервер 26 секундэд хаагддаг тул бага зэрэг илүү
-  // хугацаа өгөөд, хэтэрвэл тодорхой алдаа харуулна.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 29000);
 
@@ -165,7 +257,13 @@ async function generate(childName, referenceImageBase64, pageIndex) {
       res = await fetch("/.netlify/functions/generate-character", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ childName, photoBase64: referenceImageBase64, storyId: STORY_ID, pageIndex }),
+        body: JSON.stringify({
+          childName,
+          photoBase64: referenceImageBase64,
+          pageIndex,
+          totalPages: storyPages.length,
+          sceneDescription: page.sceneDescription,
+        }),
         signal: controller.signal,
       });
     } catch (fetchErr) {
@@ -194,12 +292,14 @@ async function generate(childName, referenceImageBase64, pageIndex) {
     if (pageIndex === 0) {
       originalImg.src = referenceImageBase64;
       generatedImg.src = data.imageBase64;
-      generatedCaption.textContent = `${childName} — 1-р хуудас`;
+      generatedCaption.textContent = page.caption || "1-р хуудас";
       setState("result");
     } else {
-      addPageToGallery(data.imageBase64, pageIndex + 1);
-      setState("result"); // resultPair аль хэдийн харагдаж байгаа тул төлөв өөрчлөгдөхгүй ч аюулгүй
+      addPageToGallery(data.imageBase64, pageIndex + 1, page.caption);
+      setState("result");
     }
+
+    renderOutline(storyPages, pageIndex + 1);
 
     if (data.isLastPage) {
       nextPageArea.hidden = true;
@@ -208,7 +308,8 @@ async function generate(childName, referenceImageBase64, pageIndex) {
     } else {
       nextPageArea.hidden = false;
       storyDone.hidden = true;
-      nextPageHint.textContent = "Одоогийн дүрээ ашиглаад, түүхийн дараагийн мөчийг зурна";
+      const nextCaption = storyPages[pageIndex + 1] ? storyPages[pageIndex + 1].caption : "";
+      nextPageHint.textContent = nextCaption ? `Дараагийн хуудас: ${nextCaption}` : "Дараагийн мөчийг зурна";
     }
   } catch (err) {
     errorDetail.textContent = err.message || "Дахин оролдоно уу.";
@@ -220,16 +321,16 @@ async function generate(childName, referenceImageBase64, pageIndex) {
   }
 }
 
-function addPageToGallery(imageBase64, pageNumber) {
+function addPageToGallery(imageBase64, pageNumber, caption) {
   const figure = document.createElement("figure");
   figure.className = "polaroid generated";
   const img = document.createElement("img");
   img.src = imageBase64;
-  img.alt = `Хуудас ${pageNumber}`;
-  const caption = document.createElement("figcaption");
-  caption.textContent = `${pageNumber}-р хуудас`;
+  img.alt = caption || `Хуудас ${pageNumber}`;
+  const captionEl = document.createElement("figcaption");
+  captionEl.textContent = caption || `${pageNumber}-р хуудас`;
   figure.appendChild(img);
-  figure.appendChild(caption);
+  figure.appendChild(captionEl);
   pagesGallery.appendChild(figure);
 }
 
