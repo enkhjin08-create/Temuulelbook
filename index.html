@@ -47,6 +47,11 @@
 
   <ol class="story-outline" id="storyOutline" hidden></ol>
 
+  <div class="story-approve-area" id="storyApproveArea" hidden>
+    <button type="button" class="btn-approve" id="approveBtn">✓ Таалагдлаа, зурж эхлэх</button>
+    <p class="approve-hint">Дээрх түүхийг захиалагчтай хамт хянаад, зөвшөөрвөл дарна уу</p>
+  </div>
+
   <section class="workspace">
 
     <form id="genForm" class="gen-form">
@@ -58,6 +63,15 @@
       <label class="field">
         <span class="field-label">Нас</span>
         <input type="number" id="childAge" name="childAge" placeholder="Жишээ: 5" min="1" max="14" required />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Хүйс</span>
+        <select id="childGender" name="childGender" required>
+          <option value="" disabled selected>Сонгоно уу</option>
+          <option value="охин">Охин</option>
+          <option value="хүү">Хүү</option>
+        </select>
       </label>
 
       <label class="field">

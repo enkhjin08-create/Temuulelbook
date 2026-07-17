@@ -8,14 +8,18 @@ const genForm = document.getElementById("genForm");
 const generateBtn = document.getElementById("generateBtn");
 const childNameInput = document.getElementById("childName");
 const childAgeInput = document.getElementById("childAge");
+const childGenderInput = document.getElementById("childGender");
 const childInterestsInput = document.getElementById("childInterests");
 
-const storyCard = document.getElementById("storyCard");
 const storyTitleEl = document.getElementById("storyTitle");
 const storySubtitleEl = document.getElementById("storySubtitle");
 const storyOutlineEl = document.getElementById("storyOutline");
 
+const storyApproveArea = document.getElementById("storyApproveArea");
+const approveBtn = document.getElementById("approveBtn");
+
 const resultPlaceholder = document.getElementById("resultPlaceholder");
+const resultPlaceholderText = resultPlaceholder.querySelector("p");
 const resultLoading = document.getElementById("resultLoading");
 const resultError = document.getElementById("resultError");
 const resultPair = document.getElementById("resultPair");
@@ -39,10 +43,11 @@ let photoDataUrl = null;
 
 // Түүхийн явцын төлөв
 let currentChildName = null;
+let currentGender = null;
 let storyPages = []; // [{ caption, sceneDescription }, ...]
 let currentPageIndex = 0;
 let lastGeneratedImageBase64 = null;
-let lastAttempt = null; // { type: "story" } | { type: "page", childName, referenceImageBase64, pageIndex }
+let lastAttempt = null; // { type: "story", ... } | { type: "page", ... }
 
 // ---------- photo upload ----------
 
@@ -116,6 +121,68 @@ function resizeImage(dataUrl, maxDim, quality, callback) {
   img.src = dataUrl;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---------- сүлжээ/сервер талын түр зуурын алдааг автоматаар дахин оролддог fetch ----------
+//
+// 429 (rate limit) болон 5xx (503 high demand гэх мэт), мөн timeout/сүлжээний
+// алдааг автоматаар дахин оролддог. 400 гэх мэт validation алдааг шууд шидэж,
+// дахин оролдохгүй.
+async function fetchJsonWithRetry(url, options, { maxRetries = 3, retryDelayMs = 2500, timeoutMs = 29000, onRetry } = {}) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    let res = null;
+    let networkErr = null;
+    let aborted = false;
+
+    try {
+      res = await fetch(url, { ...options, signal: controller.signal });
+    } catch (err) {
+      if (err.name === "AbortError") aborted = true;
+      else networkErr = err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (aborted || networkErr) {
+      if (attempt < maxRetries) {
+        if (onRetry) onRetry(attempt, maxRetries);
+        await sleep(retryDelayMs * attempt);
+        continue;
+      }
+      throw new Error(aborted ? "Хугацаа хэтэрлээ. Дахин оролдоно уу." : `Сүлжээний алдаа: ${networkErr.message}`);
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      if (attempt < maxRetries) {
+        if (onRetry) onRetry(attempt, maxRetries);
+        await sleep(retryDelayMs * attempt);
+        continue;
+      }
+      throw new Error(`Серверийн хариу уншигдсангүй (${res.status}).`);
+    }
+
+    if (res.ok) return data;
+
+    const isRetryable = res.status === 429 || res.status >= 500;
+    if (isRetryable && attempt < maxRetries) {
+      if (onRetry) onRetry(attempt, maxRetries);
+      await sleep(retryDelayMs * attempt);
+      continue;
+    }
+
+    const detail = data.detail ? ` — ${data.detail}` : "";
+    throw new Error((data.error || "Тодорхойгүй алдаа гарлаа.") + detail);
+  }
+}
+
 // ---------- form submit ----------
 
 genForm.addEventListener("submit", async (e) => {
@@ -123,10 +190,12 @@ genForm.addEventListener("submit", async (e) => {
 
   const childName = childNameInput.value.trim();
   const age = childAgeInput.value.trim();
+  const gender = childGenderInput.value;
   const interests = childInterestsInput.value.trim();
 
   if (!childName) { childNameInput.focus(); return; }
   if (!age) { childAgeInput.focus(); return; }
+  if (!gender) { childGenderInput.focus(); return; }
   if (!interests) { childInterestsInput.focus(); return; }
   if (!photoDataUrl) {
     alert("Эхлээд хүүхдийн зургаа оруулна уу.");
@@ -137,22 +206,29 @@ genForm.addEventListener("submit", async (e) => {
   pagesGallery.innerHTML = "";
   storyOutlineEl.innerHTML = "";
   storyOutlineEl.hidden = true;
+  storyApproveArea.hidden = true;
   nextPageArea.hidden = true;
   storyDone.hidden = true;
   currentChildName = childName;
+  currentGender = gender;
   storyPages = [];
   currentPageIndex = 0;
 
-  await composeStory(childName, age, interests);
+  await composeStory(childName, age, gender, interests);
 });
 
 retryBtn.addEventListener("click", () => {
   if (!lastAttempt) return;
   if (lastAttempt.type === "story") {
-    composeStory(lastAttempt.childName, lastAttempt.age, lastAttempt.interests);
+    composeStory(lastAttempt.childName, lastAttempt.age, lastAttempt.gender, lastAttempt.interests);
   } else if (lastAttempt.type === "page") {
     generatePage(lastAttempt.childName, lastAttempt.referenceImageBase64, lastAttempt.pageIndex);
   }
+});
+
+approveBtn.addEventListener("click", () => {
+  storyApproveArea.hidden = true;
+  generatePage(currentChildName, photoDataUrl, 0);
 });
 
 nextPageBtn.addEventListener("click", () => {
@@ -162,62 +238,47 @@ nextPageBtn.addEventListener("click", () => {
 
 // ---------- 1) түүхийн тойм зохиох ----------
 
-async function composeStory(childName, age, interests) {
-  lastAttempt = { type: "story", childName, age, interests };
+async function composeStory(childName, age, gender, interests) {
+  lastAttempt = { type: "story", childName, age, gender, interests };
 
   setState("loading");
   generateBtn.disabled = true;
   loadingText.textContent = "Үлгэрээ зохиож байна…";
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 29000);
-
   try {
-    let res;
-    try {
-      res = await fetch("/.netlify/functions/generate-story", {
+    const data = await fetchJsonWithRetry(
+      "/.netlify/functions/generate-story",
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ childName, age, interests }),
-        signal: controller.signal,
-      });
-    } catch (fetchErr) {
-      if (fetchErr.name === "AbortError") {
-        throw new Error("Хугацаа хэтэрлээ. Дахин оролдоно уу.");
+        body: JSON.stringify({ childName, age, gender, interests }),
+      },
+      {
+        onRetry: (attempt, max) => {
+          loadingText.textContent = `Дахин оролдож байна… (${attempt}/${max})`;
+        },
       }
-      throw new Error(`Сүлжээний алдаа: ${fetchErr.message}`);
-    }
-
-    let data;
-    try {
-      data = await res.json();
-    } catch (e) {
-      throw new Error(`Серверийн хариу уншигдсангүй (${res.status}).`);
-    }
-
-    if (!res.ok) {
-      const detail = data.detail ? ` — ${data.detail}` : "";
-      throw new Error((data.error || "Тодорхойгүй алдаа гарлаа.") + detail);
-    }
+    );
 
     storyPages = data.pages;
     renderStoryCard(data.title, storyPages.length);
-    renderOutline(storyPages, 0);
+    renderOutline(storyPages, -1);
 
-    // Түүхийн тойм бэлэн болмогц эхний хуудсыг шууд зурж эхэлнэ
-    await generatePage(childName, photoDataUrl, 0);
+    // Түүхийн тойм бэлэн боллоо — захиалагч зөвшөөрөх хүртэл зураг зурж эхлэхгүй
+    resultPlaceholderText.textContent = "Дээрх түүхийг харж, зөвшөөрсний дараа зураг эндээс харагдана.";
+    setState("placeholder");
+    storyApproveArea.hidden = false;
   } catch (err) {
     errorDetail.textContent = err.message || "Дахин оролдоно уу.";
     setState("error");
-    generateBtn.disabled = false;
   } finally {
-    clearTimeout(timeoutId);
+    generateBtn.disabled = false;
   }
 }
 
 function renderStoryCard(title, pageCount) {
   storyTitleEl.textContent = title;
-  storySubtitleEl.textContent = `${pageCount} хуудас түүх бэлэн боллоо`;
+  storySubtitleEl.textContent = `${pageCount} хуудас түүх бэлэн боллоо — дараа нь хараад зөвшөөрнө үү`;
 }
 
 function renderOutline(pages, activeIndex) {
@@ -227,7 +288,7 @@ function renderOutline(pages, activeIndex) {
     const li = document.createElement("li");
     li.textContent = p.caption;
     if (i === activeIndex) li.classList.add("active");
-    if (i < activeIndex) li.classList.add("done");
+    if (activeIndex >= 0 && i < activeIndex) li.classList.add("done");
     storyOutlineEl.appendChild(li);
   });
 }
@@ -248,42 +309,27 @@ async function generatePage(childName, referenceImageBase64, pageIndex) {
     : `${pageIndex + 1}-р хуудсыг зурж байна…`;
   renderOutline(storyPages, pageIndex);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 29000);
-
   try {
-    let res;
-    try {
-      res = await fetch("/.netlify/functions/generate-character", {
+    const data = await fetchJsonWithRetry(
+      "/.netlify/functions/generate-character",
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           childName,
+          gender: currentGender,
           photoBase64: referenceImageBase64,
           pageIndex,
           totalPages: storyPages.length,
           sceneDescription: page.sceneDescription,
         }),
-        signal: controller.signal,
-      });
-    } catch (fetchErr) {
-      if (fetchErr.name === "AbortError") {
-        throw new Error("Хугацаа хэтэрлээ (30 секунд). Gemini удаан хариулж байна, дахин оролдоно уу.");
+      },
+      {
+        onRetry: (attempt, max) => {
+          loadingText.textContent = `Дахин оролдож байна… (${attempt}/${max})`;
+        },
       }
-      throw new Error(`Сүлжээний алдаа: ${fetchErr.message}`);
-    }
-
-    let data;
-    try {
-      data = await res.json();
-    } catch (e) {
-      throw new Error(`Серверийн хариу уншигдсангүй (${res.status}).`);
-    }
-
-    if (!res.ok) {
-      const detail = data.detail ? ` — ${data.detail}` : "";
-      throw new Error((data.error || "Тодорхойгүй алдаа гарлаа.") + detail);
-    }
+    );
 
     currentChildName = childName;
     currentPageIndex = data.pageIndex;
@@ -315,7 +361,6 @@ async function generatePage(childName, referenceImageBase64, pageIndex) {
     errorDetail.textContent = err.message || "Дахин оролдоно уу.";
     setState("error");
   } finally {
-    clearTimeout(timeoutId);
     generateBtn.disabled = false;
     nextPageBtn.disabled = false;
   }
