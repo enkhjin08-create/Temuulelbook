@@ -45,13 +45,6 @@
     </div>
   </section>
 
-  <ol class="story-outline" id="storyOutline" hidden></ol>
-
-  <div class="story-approve-area" id="storyApproveArea" hidden>
-    <button type="button" class="btn-approve" id="approveBtn">✓ Таалагдлаа, зурж эхлэх</button>
-    <p class="approve-hint">Дээрх түүхийг захиалагчтай хамт хянаад, зөвшөөрвөл дарна уу</p>
-  </div>
-
   <section class="workspace">
 
     <form id="genForm" class="gen-form">
@@ -123,6 +116,16 @@
         <button type="button" class="btn-retry" id="retryBtn">Дахин оролдох</button>
       </div>
 
+      <!-- Түүх зохиогдоод, зураг зурж эхлэхээс өмнө захиалагчид бүтэн тоймыг харуулж,
+           зөвшөөрлийг нь хүлээдэг хэсэг. Result-area дотор байгаа тул хэрэглэгчийн
+           анхаарал хандаж байгаа газарт л гарч ирнэ (дээш гүйлгэх шаардлагагүй). -->
+      <div class="result-story-ready" id="resultStoryReady" hidden>
+        <p class="story-ready-title">✨ Түүх бэлэн боллоо! Доор хараад зөвшөөрнө үү:</p>
+        <ol class="story-outline" id="storyOutline"></ol>
+        <button type="button" class="btn-approve" id="approveBtn">✓ Таалагдлаа, эхний зургийг зурах</button>
+        <p class="approve-hint">Захиалагчтай хамт хараад зөвшөөрсний дараа л зураг зурж эхэлнэ</p>
+      </div>
+
       <div class="result-pair" id="resultPair" hidden>
         <figure class="polaroid original">
           <img id="originalImg" alt="Оруулсан гэрэл зураг" />
@@ -137,15 +140,25 @@
         </figure>
       </div>
 
-      <div class="pages-gallery" id="pagesGallery"></div>
-
-      <div class="next-page-area" id="nextPageArea" hidden>
-        <button type="button" class="btn-next-page" id="nextPageBtn">Дараагийн хуудас зурах</button>
-        <p class="next-page-hint" id="nextPageHint">Одоогийн дүрээ ашиглаад, түүхийн дараагийн мөчийг зурна</p>
+      <div class="order-cta-area" id="orderCtaArea" hidden>
+        <p class="order-cta-text">Таалагдлаа юу? Захиалбал үлдсэн 9 хуудсыг бид зурж, хэвлэмэл болгож хүргэнэ.</p>
+        <button type="button" class="btn-order" id="orderCtaBtn">🛒 Захиалах — 120,000₮</button>
       </div>
 
-      <div class="story-done" id="storyDone" hidden>
-        <p>✨ Түүх дуусав — <span id="pageCount"></span> хуудас бэлэн боллоо</p>
+      <form class="order-form" id="orderForm" hidden>
+        <label class="field">
+          <span class="field-label">Утасны дугаар</span>
+          <input type="tel" id="orderPhone" placeholder="9911XXXX" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Нэмэлт тэмдэглэл (заавал биш)</span>
+          <input type="text" id="orderNote" placeholder="Хаяг, хүргэлтийн мэдээлэл г.м." maxlength="300" />
+        </label>
+        <button type="submit" class="btn-order-submit" id="orderSubmitBtn">Захиалга баталгаажуулах</button>
+      </form>
+
+      <div class="order-done" id="orderDone" hidden>
+        <p>🎉 Захиалга бүртгэгдлээ! Бид тантай удахгүй холбогдож, төлбөрийн дэлгэрэнгүйг илгээнэ.</p>
       </div>
 
     </div>

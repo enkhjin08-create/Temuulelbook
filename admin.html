@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Зөвхөн Түүнд Kids Book — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<style>
+  .admin-main { max-width: 1000px; }
+
+  .pin-gate {
+    max-width: 340px;
+    margin: 80px auto;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    box-shadow: var(--shadow-soft);
+    text-align: center;
+  }
+  .pin-gate h2 { font-family: var(--font-display); margin: 0 0 16px; color: var(--plum); }
+  .pin-gate input {
+    width: 100%;
+    font-size: 20px;
+    text-align: center;
+    letter-spacing: 6px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--cream-2);
+    margin-bottom: 14px;
+  }
+  .pin-gate button {
+    width: 100%;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--white);
+    background: var(--coral);
+    border: none;
+    border-radius: 999px;
+    padding: 12px;
+    cursor: pointer;
+  }
+  .pin-error { color: var(--coral); font-size: 13px; margin-top: 10px; }
+
+  .order-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .order-row {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+  }
+  .order-row-info { display: flex; flex-direction: column; gap: 3px; }
+  .order-row-name { font-family: var(--font-display); font-weight: 700; color: var(--plum); }
+  .order-row-meta { font-size: 12.5px; color: var(--plum-soft); }
+  .order-status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 5px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .status-new { background: #f3e6c8; color: #8a6d1f; }
+  .status-paid { background: #d8ecd4; color: #2f6b2a; }
+  .status-completed { background: #d4e3f7; color: #2a4f8a; }
+  .status-cancelled { background: #f3d6d0; color: #9a3b2a; }
+
+  .order-detail {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-soft);
+    margin-top: 24px;
+  }
+  .order-detail-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .order-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-small {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12.5px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-mark-paid { background: var(--sage); color: white; }
+  .btn-back { background: var(--cream-2); color: var(--plum); }
+
+  .order-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 16px;
+    font-size: 13.5px;
+    color: var(--plum-soft);
+    margin-bottom: 20px;
+  }
+  .order-meta-grid b { color: var(--plum); }
+
+  #adminLoading, #adminError { text-align: center; padding: 40px; color: var(--plum-soft); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">Зөвхөн <span>Түүнд</span> <small>kids book · admin</small></div>
+  <a href="/" class="topbar-badge" style="text-decoration:none;">← Үндсэн хуудас</a>
+</header>
+
+<main class="admin-main">
+
+  <div class="pin-gate" id="pinGate">
+    <h2>Admin PIN</h2>
+    <input type="password" id="pinInput" inputmode="numeric" maxlength="8" placeholder="••••" />
+    <button type="button" id="pinSubmit">Нэвтрэх</button>
+    <p class="pin-error" id="pinError" hidden></p>
+  </div>
+
+  <div id="adminApp" hidden>
+    <section class="hero">
+      <h1>Захиалгууд</h1>
+    </section>
+
+    <div id="adminLoading">Ачааллаж байна…</div>
+    <div id="adminError" hidden></div>
+
+    <div class="order-list" id="orderList"></div>
+
+    <div class="order-detail" id="orderDetail" hidden></div>
+  </div>
+
+</main>
+
+<script>
+const pinGate = document.getElementById("pinGate");
+const pinInput = document.getElementById("pinInput");
+const pinSubmit = document.getElementById("pinSubmit");
+const pinError = document.getElementById("pinError");
+const adminApp = document.getElementById("adminApp");
+
+const adminLoading = document.getElementById("adminLoading");
+const adminError = document.getElementById("adminError");
+const orderList = document.getElementById("orderList");
+const orderDetail = document.getElementById("orderDetail");
+
+let adminPin = sessionStorage.getItem("adminPin") || "";
+
+const STATUS_LABELS = { new: "Шинэ", paid: "Төлсөн", completed: "Дууссан", cancelled: "Цуцалсан" };
+
+if (adminPin) {
+  tryEnter(adminPin);
+}
+
+pinSubmit.addEventListener("click", () => tryEnter(pinInput.value.trim()));
+pinInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") tryEnter(pinInput.value.trim());
+});
+
+async function tryEnter(pin) {
+  if (!pin) return;
+  pinError.hidden = true;
+  try {
+    const res = await fetch("/.netlify/functions/list-orders", { headers: { "x-admin-pin": pin } });
+    if (res.status === 401) {
+      pinError.textContent = "PIN буруу байна.";
+      pinError.hidden = false;
+      return;
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      pinError.textContent = data.error || "Алдаа гарлаа.";
+      pinError.hidden = false;
+      return;
+    }
+    adminPin = pin;
+    sessionStorage.setItem("adminPin", pin);
+    pinGate.hidden = true;
+    adminApp.hidden = false;
+    const data = await res.json();
+    renderOrderList(data.orders);
+  } catch (err) {
+    pinError.textContent = `Алдаа: ${err.message}`;
+    pinError.hidden = false;
+  }
+}
+
+function adminFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    headers: { ...(options.headers || {}), "x-admin-pin": adminPin },
+  });
+}
+
+function renderOrderList(orders) {
+  adminLoading.hidden = true;
+  orderList.innerHTML = "";
+
+  if (!orders || orders.length === 0) {
+    adminError.hidden = false;
+    adminError.textContent = "Захиалга алга байна.";
+    return;
+  }
+
+  orders.forEach((o) => {
+    const row = document.createElement("div");
+    row.className = "order-row";
+    row.innerHTML = `
+      <div class="order-row-info">
+        <span class="order-row-name">${escapeHtml(o.childName || "(нэргүй)")}</span>
+        <span class="order-row-meta">${o.pageCount || 0}/${o.totalPages || "?"} хуудас · ${o.contactPhone || ""} · ${formatDate(o.createdAt)}</span>
+      </div>
+      <span class="order-status-badge status-${o.status}">${STATUS_LABELS[o.status] || o.status}</span>
+    `;
+    row.addEventListener("click", () => openOrder(o.id));
+    orderList.appendChild(row);
+  });
+}
+
+async function openOrder(id) {
+  orderDetail.hidden = false;
+  orderDetail.innerHTML = "<p>Ачааллаж байна…</p>";
+  orderDetail.scrollIntoView({ behavior: "smooth" });
+
+  const res = await adminFetch(`/.netlify/functions/get-order?id=${encodeURIComponent(id)}`);
+  const data = await res.json();
+  if (!res.ok) {
+    orderDetail.innerHTML = `<p>Алдаа: ${escapeHtml(data.error || "")}</p>`;
+    return;
+  }
+  renderOrderDetail(data.order);
+}
+
+function renderOrderDetail(order) {
+  const isLast = order.generatedPages.length >= order.storyPages.length;
+
+  orderDetail.innerHTML = `
+    <div class="order-detail-header">
+      <div>
+        <h2 style="font-family:var(--font-display);margin:0 0 4px;color:var(--plum);">${escapeHtml(order.childName)} — ${escapeHtml(order.storyTitle || "")}</h2>
+        <span class="order-status-badge status-${order.status}">${STATUS_LABELS[order.status] || order.status}</span>
+      </div>
+      <div class="order-detail-actions">
+        <button class="btn-small btn-mark-paid" id="markPaidBtn" ${order.status === "paid" || order.status === "completed" ? "disabled" : ""}>✓ Төлсөн гэж тэмдэглэх</button>
+        <button class="btn-small btn-back" id="closeDetailBtn">Хаах</button>
+      </div>
+    </div>
+
+    <div class="order-meta-grid">
+      <div><b>Нас:</b> ${escapeHtml(String(order.age))}</div>
+      <div><b>Хүйс:</b> ${escapeHtml(order.gender)}</div>
+      <div><b>Сонирхол:</b> ${escapeHtml(order.interests)}</div>
+      <div><b>Утас:</b> ${escapeHtml(order.contactPhone)}</div>
+      <div><b>Тэмдэглэл:</b> ${escapeHtml(order.contactNote || "—")}</div>
+      <div><b>Үнэ:</b> ${Number(order.price || 0).toLocaleString()}₮</div>
+    </div>
+
+    <div class="pages-gallery" id="orderPagesGallery"></div>
+
+    <div class="next-page-area" id="orderNextPageArea" ${isLast ? "hidden" : ""}>
+      <button type="button" class="btn-next-page" id="orderNextPageBtn">Дараагийн хуудас зурах</button>
+      <p class="next-page-hint" id="orderNextPageHint"></p>
+    </div>
+
+    <div class="story-done" id="orderStoryDone" ${isLast ? "" : "hidden"}>
+      <p>✨ Бүх ${order.storyPages.length} хуудас бэлэн боллоо</p>
+    </div>
+
+    <div class="result-error" id="orderPageError" hidden style="margin-top:16px;">
+      <p class="error-title">Алдаа гарлаа</p>
+      <p class="error-detail" id="orderPageErrorDetail"></p>
+    </div>
+  `;
+
+  const gallery = document.getElementById("orderPagesGallery");
+  order.generatedPages
+    .slice()
+    .sort((a, b) => a.pageIndex - b.pageIndex)
+    .forEach((p) => {
+      const figure = document.createElement("figure");
+      figure.className = "polaroid generated";
+      const img = document.createElement("img");
+      img.src = p.imageBase64;
+      const caption = document.createElement("figcaption");
+      caption.textContent = `${p.pageIndex + 1}-р хуудас: ${p.caption || ""}`;
+      figure.appendChild(img);
+      figure.appendChild(caption);
+      gallery.appendChild(figure);
+    });
+
+  document.getElementById("closeDetailBtn").addEventListener("click", () => {
+    orderDetail.hidden = true;
+    orderDetail.innerHTML = "";
+  });
+
+  const markPaidBtn = document.getElementById("markPaidBtn");
+  markPaidBtn.addEventListener("click", async () => {
+    markPaidBtn.disabled = true;
+    await adminFetch("/.netlify/functions/update-order-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: order.id, status: "paid" }),
+    });
+    openOrder(order.id);
+    refreshList();
+  });
+
+  if (!isLast) {
+    const nextBtn = document.getElementById("orderNextPageBtn");
+    const nextHint = document.getElementById("orderNextPageHint");
+    const nextIndex = order.generatedPages.length;
+    const nextPage = order.storyPages[nextIndex];
+    nextHint.textContent = nextPage ? `Дараагийн: ${nextPage.caption}` : "";
+
+    nextBtn.addEventListener("click", async () => {
+      nextBtn.disabled = true;
+      nextBtn.textContent = "Зурж байна…";
+      document.getElementById("orderPageError").hidden = true;
+
+      try {
+        const lastPage = order.generatedPages[order.generatedPages.length - 1];
+        const genRes = await fetch("/.netlify/functions/generate-character", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            childName: order.childName,
+            gender: order.gender,
+            photoBase64: lastPage.imageBase64,
+            pageIndex: nextIndex,
+            totalPages: order.storyPages.length,
+            sceneDescription: nextPage.sceneDescription,
+          }),
+        });
+        const genData = await genRes.json();
+        if (!genRes.ok) {
+          throw new Error((genData.error || "Алдаа гарлаа.") + (genData.detail ? ` — ${genData.detail}` : ""));
+        }
+
+        await adminFetch("/.netlify/functions/append-order-page", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: order.id,
+            pageIndex: nextIndex,
+            imageBase64: genData.imageBase64,
+            caption: nextPage.caption,
+          }),
+        });
+
+        openOrder(order.id);
+        refreshList();
+      } catch (err) {
+        document.getElementById("orderPageError").hidden = false;
+        document.getElementById("orderPageErrorDetail").textContent = err.message;
+        nextBtn.disabled = false;
+        nextBtn.textContent = "Дараагийн хуудас зурах";
+      }
+    });
+  }
+}
+
+async function refreshList() {
+  const res = await adminFetch("/.netlify/functions/list-orders");
+  if (res.ok) {
+    const data = await res.json();
+    renderOrderList(data.orders);
+  }
+}
+
+function formatDate(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("mn-MN");
+  } catch (e) {
+    return iso;
+  }
+}
+
+function escapeHtml(str) {
+  return String(str == null ? "" : str).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+</script>
+</body>
+</html>

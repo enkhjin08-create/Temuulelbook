@@ -10,19 +10,34 @@
 ## Бүтэц
 
 ```
-index.html                            — гол хуудас (нэр, нас, сонирхол, зураг оруулна)
-gallery.html                          — generate хийсэн бүх зургийн цуглуулга
+index.html                            — захиалагчийн хуудас (нэр/нас/хүйс/сонирхол/зураг → түүх → 1-р хуудас → захиалга)
+admin.html                            — PIN-тэй admin хуудас (үлдсэн хуудсуудыг зурж, захиалгыг удирдана)
+gallery.html                          — generate хийсэн бүх зургийн цуглуулга (QA-д зориулсан)
 style.css                             — дизайн
-script.js                             — upload, форм, түүх зохиох + хуудас бүрийг зурах урсгал
+script.js                             — index.html-ийн логик
 netlify/functions/generate-story.js   — нас/сонирхолд тохирсон 10 хуудас түүхийн тойм зохиодог (Gemini текст загвар)
-netlify/functions/generate-character.js  — тухайн хуудасны зургийг Gemini-ээр зурдаг function
+netlify/functions/generate-character.js  — тухайн хуудасны зургийг Gemini-ээр зурдаг function (1:1 хэмжээтэй)
+netlify/functions/stories.js          — зурган загварын (Ghibli-inspired) нийтлэг prompt бүтэц
+netlify/functions/create-order.js     — захиалагч захиалга өгөхөд дуудагдана (публик)
+netlify/functions/list-orders.js      — admin-only: захиалгын жагсаалт
+netlify/functions/get-order.js        — admin-only: нэг захиалгын дэлгэрэнгүй
+netlify/functions/append-order-page.js — admin-only: шинэ хуудсыг захиалгад нэмнэ
+netlify/functions/update-order-status.js — admin-only: захиалгын статус солих (жишээ: "paid")
+netlify/functions/_admin-auth.js      — admin PIN шалгах туслах модуль (өөрөө endpoint биш)
 netlify/functions/gallery-list.js     — gallery-д хадгалагдсан зургуудын жагсаалт
 netlify/functions/gallery-image.js    — нэг зургийг шууд <img src> болгож өгдөг
-netlify/functions/stories.js          — зурган загварын (Ghibli-inspired) нийтлэг prompt бүтэц
 netlify.toml                          — Netlify тохиргоо
 ```
 
-**Урсгал:** Захиалагч нэр, нас, сонирхол, зургаа оруулна → `generate-story.js` эдгээрт тохирсон 10 хуудас түүхийн тойм (гарчиг + хуудас бүрийн монгол тайлбар + англи scene description) зохионо → эхний хуудсыг захиалагчийн бодит зургийг reference болгож зурна → "Дараагийн хуудас зурах" дарах бүрд өмнөх generate хийсэн зургаа reference болгож, тухайн хуудасны scene-ийг зурж, дүр тогтвортой хэвээр байлгана → 10 хуудас бүрэн дуустал үргэлжилнэ.
+**Урсгал:**
+1. Захиалагч нэр, нас, хүйс, сонирхол, зургаа оруулна
+2. `generate-story.js` тохирсон 10 хуудас түүхийн тойм (гарчиг + хуудас бүрийн монгол тайлбар) зохионо — энэ **бүтнээрээ result-area дотор** (захиалагчийн нүдэн дээр, дээш гүйлгэх шаардлагагүй) харагдана
+3. Захиалагч зөвшөөрвөл ("✓ Таалагдлаа") зөвхөн **1-р хуудсыг** л зурна (бодит зургийг reference болгож)
+4. 1-р хуудас таалагдвал **"Захиалах — 120,000₮"** дараад утасны дугаараа өгч захиалга баталгаажуулна (`create-order.js`)
+5. Захиалга нь бүх түүхийн мэдээлэл (10 хуудасны тойм, 1-р хуудасны зураг, эх зураг) хамт Netlify Blobs-д хадгалагдана
+6. Захиалагчийн тал энд дуусна — **үлдсэн 9 хуудсыг зөвхөн admin** `/admin.html` дээрээс зурна
+
+**Admin (`/admin.html`):** `ADMIN_PIN` орчны хувьсагчаар хамгаалагдсан. Захиалгын жагсаалт харж, нэг нэгээр нь нээж, "Дараагийн хуудас зурах" дараад өмнөх зурсан зургаа reference болгож үргэлжлүүлнэ (дүр тогтвортой хэвээр). Мөн "Төлсөн" гэж тэмдэглэх боломжтой (жинхэнэ төлбөрийн систем ороогүй тул гараар тэмдэглэдэг).
 
 **Gallery:** Generate хийгдэх бүр зураг Netlify Blobs-д автоматаар хадгалагддаг тул `/gallery.html` хуудаснаас бүх түүхэн зургийг цаг хугацаагаар нь эрэмбэлж харах боломжтой.
 
@@ -38,7 +53,10 @@ netlify.toml                          — Netlify тохиргоо
 1. Энэ folder-ыг GitHub repo болгож push хийнэ
 2. https://app.netlify.com → "Add new site" → "Import an existing project" → GitHub repo-гоо сонгоно
 3. Build settings нь netlify.toml-с автоматаар ирнэ (`npm install`, publish = ".")
-4. **Site settings → Environment variables** руу орж, `GEMINI_API_KEY` нэртэй хувьсагч нэмээд, API key-гээ тавина
+4. **Site settings → Environment variables** руу орж, дараах хувьсагчдыг нэмнэ:
+   - `GEMINI_API_KEY` — Google AI Studio-с авсан key
+   - `ADMIN_PIN` — admin.html-д нэвтрэх PIN код (жишээ нь `2468`, өөрөө сонгоно)
+   - Хэрэв Blobs автоматаар ажиллахгүй бол `BLOBS_SITE_ID`/`BLOBS_TOKEN`-ыг нэмнэ (README-ийн доод хэсгийг үзнэ үү)
 5. Deploy дуустал хүлээнэ (2-3 минут)
 
 ### 3. Локал дээр туршиж үзэх (заавал биш)
