@@ -10,7 +10,7 @@
 //   { title, pages: [{ caption, sceneDescription }, ... 10 ширхэг] }
 
 const GEMINI_TEXT_ENDPOINT =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
 const PAGE_COUNT = 10;
 
