@@ -15,14 +15,15 @@ No text or watermarks in the image. Square or portrait book-page composition.
 
 // pageIndex === 0 үед захиалагчийн бодит зургийг reference болгоно.
 // pageIndex > 0 үед өмнөх generate хийсэн зургийг reference болгоно (тогтвортой дүр).
-function buildPagePrompt({ childName, sceneDescription, pageIndex, totalPages }) {
+function buildPagePrompt({ childName, gender, sceneDescription, pageIndex, totalPages }) {
   const isFirstPage = pageIndex === 0;
   const pageNum = pageIndex + 1;
+  const genderEn = gender === "хүү" ? "boy" : "girl";
 
   if (isFirstPage) {
     return `
 You are illustrating page 1 of ${totalPages} of a warm, whimsical, personalized
-children's picture book featuring a child named ${childName}.
+children's picture book featuring a ${genderEn} named ${childName}.
 
 CRITICAL — likeness accuracy is the top priority. Study the uploaded photo closely
 and preserve, as precisely as possible:
@@ -35,7 +36,8 @@ Do NOT invent a different outfit. Do NOT generalize the face into a generic
 cartoon child — the goal is that a parent instantly recognizes their own child,
 just rendered in illustrated form. Treat the photo as the ground truth reference
 for every visual detail of the child, and only reinterpret the art STYLE, not the
-child's actual appearance or outfit.
+child's actual appearance or outfit. The child is a ${genderEn} — keep the
+illustrated character clearly recognizable as a ${genderEn}.
 
 Scene for this page: ${sceneDescription}
 
@@ -48,8 +50,8 @@ identical across all ${totalPages} pages of this book.
 
   return `
 You are illustrating page ${pageNum} of ${totalPages} of the same personalized
-children's picture book featuring ${childName}, continuing directly from the
-previous page.
+children's picture book featuring ${childName} (a ${genderEn}), continuing
+directly from the previous page.
 
 The attached reference image shows the exact same child character (${childName})
 and any companion character(s), already established in a Ghibli-inspired

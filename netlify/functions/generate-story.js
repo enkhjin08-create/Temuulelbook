@@ -26,13 +26,16 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { childName, age, interests } = body;
+  const { childName, age, interests, gender } = body;
 
   if (!childName || typeof childName !== "string") {
     return respond(400, { error: "Хүүхдийн нэрийг оруулна уу." });
   }
   if (!age) {
     return respond(400, { error: "Насыг оруулна уу." });
+  }
+  if (!gender || (gender !== "хүү" && gender !== "охин")) {
+    return respond(400, { error: "Хүйсийг сонгоно уу." });
   }
   if (!interests || typeof interests !== "string") {
     return respond(400, { error: "Сонирхлыг оруулна уу." });
@@ -41,10 +44,18 @@ exports.handler = async (event) => {
     return respond(500, { error: "Серверт GEMINI_API_KEY тохируулаагүй байна." });
   }
 
+  const genderEn = gender === "хүү" ? "boy" : "girl";
+  const pronounEn = gender === "хүү" ? "he/him" : "she/her";
+
   const prompt = `
 You are a children's book author. Write a personalized ${PAGE_COUNT}-page picture
-book outline for a child named "${childName}", age ${age}, who is interested in:
+book outline for a ${genderEn} named "${childName}", age ${age}, who is interested in:
 ${interests}.
+
+CRITICAL: The child is a ${genderEn} (pronouns: ${pronounEn}). Every scene
+description and caption must consistently refer to the child as a ${genderEn} —
+do not default to the opposite gender, do not use gender-neutral phrasing when a
+specific pronoun is natural, and do not switch gender partway through the story.
 
 Requirements:
 - Age-appropriate for a ${age}-year-old (simple, warm, gentle themes; nothing scary).

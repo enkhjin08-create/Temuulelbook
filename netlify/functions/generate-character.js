@@ -40,7 +40,7 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { childName, photoBase64, sceneDescription } = body;
+  const { childName, photoBase64, sceneDescription, gender } = body;
   const pageIndex = Number.isInteger(body.pageIndex) ? body.pageIndex : 0;
   const totalPages = Number.isInteger(body.totalPages) ? body.totalPages : 1;
 
@@ -63,7 +63,7 @@ exports.handler = async (event) => {
   const mimeType = match ? match[1] : "image/jpeg";
   const rawBase64 = match ? match[2] : photoBase64;
 
-  const prompt = buildPagePrompt({ childName, sceneDescription, pageIndex, totalPages });
+  const prompt = buildPagePrompt({ childName, gender, sceneDescription, pageIndex, totalPages });
 
   try {
     const geminiRes = await fetch(`${GEMINI_ENDPOINT}?key=${process.env.GEMINI_API_KEY}`, {
