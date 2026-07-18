@@ -12,6 +12,7 @@
 const { getStore } = require("@netlify/blobs");
 const { checkSession } = require("./_auth");
 const { sendEmail } = require("./_email");
+const { resetRateLimit } = require("./_rate-limit");
 
 const PRICE = 120000;
 const ADMIN_NOTIFY_EMAIL = "info.zuvhuntuund@gmail.com";
@@ -138,6 +139,11 @@ exports.handler = async (event) => {
         <p>Төлбөр баталгаажсаны дараа бид имэйлээр мэдэгдэнэ.</p>
       `,
     }).catch(() => {});
+
+    // Захиалга амжилттай баталгаажсан тул тухайн хэрэглэгчийн өдрийн хязгаарыг
+    // цэвэрлэж, дараагийн захиалгаа шинэ хязгаартайгаар эхлүүлэх боломж өгнө
+    await resetRateLimit(event, "generate-story");
+    await resetRateLimit(event, "generate-character");
 
     return respond(200, { id, bank: BANK });
   } catch (err) {

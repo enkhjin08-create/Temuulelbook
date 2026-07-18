@@ -65,4 +65,19 @@ async function checkRateLimit(event, functionName, limit) {
   }
 }
 
-module.exports = { checkRateLimit, getClientIp };
+// Захиалга амжилттай баталгаажсаны дараа тухайн хэрэглэгчийн хязгаарыг
+// цэвэрлэж, дараагийн захиалгаа шинэ хязгаартайгаар эхлүүлэх боломж өгнө.
+async function resetRateLimit(event, functionName) {
+  const ip = getClientIp(event);
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `${functionName}:${ip}:${today}`;
+
+  try {
+    const store = getRateLimitStore();
+    await store.delete(key);
+  } catch (err) {
+    console.error("Rate limit reset failed:", err);
+  }
+}
+
+module.exports = { checkRateLimit, resetRateLimit, getClientIp };
