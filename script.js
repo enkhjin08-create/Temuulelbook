@@ -32,6 +32,11 @@ const generatedCaption = document.getElementById("generatedCaption");
 const loadingText = document.getElementById("loadingText");
 
 const orderCtaArea = document.getElementById("orderCtaArea");
+const pageEditArea = document.getElementById("pageEditArea");
+const editTextToggleBtn = document.getElementById("editTextToggleBtn");
+const pageEditBox = document.getElementById("pageEditBox");
+const pageEditTextarea = document.getElementById("pageEditTextarea");
+const regenerateBtn = document.getElementById("regenerateBtn");
 const orderCtaBtn = document.getElementById("orderCtaBtn");
 const orderForm = document.getElementById("orderForm");
 const orderPhoneInput = document.getElementById("orderPhone");
@@ -336,9 +341,21 @@ function renderStoryCard(title, pageCount) {
 
 function renderOutline(pages) {
   storyOutlineEl.innerHTML = "";
-  pages.forEach((p) => {
+  pages.forEach((p, i) => {
     const li = document.createElement("li");
-    li.textContent = p.caption;
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "outline-textarea";
+    textarea.rows = 2;
+    textarea.value = p.caption;
+    textarea.addEventListener("input", () => {
+      pages[i].caption = textarea.value;
+      // Зурах prompt-д ашиглагдах текстийг мөн шинэчилнэ, ингэснээр
+      // засварласан агуулга нь бодит зурган дээр тусна
+      pages[i].sceneDescription = textarea.value;
+    });
+
+    li.appendChild(textarea);
     storyOutlineEl.appendChild(li);
   });
 }
@@ -382,13 +399,32 @@ async function generateFirstPage() {
 
     setState("result");
     orderCtaArea.hidden = false;
+    pageEditArea.hidden = false;
+    pageEditBox.hidden = true;
+    pageEditTextarea.value = storyPages[0].caption;
   } catch (err) {
     errorDetail.textContent = err.message || "Дахин оролдоно уу.";
     setState("error");
   } finally {
     approveBtn.disabled = false;
+    regenerateBtn.disabled = false;
   }
 }
+
+editTextToggleBtn.addEventListener("click", () => {
+  pageEditBox.hidden = !pageEditBox.hidden;
+});
+
+regenerateBtn.addEventListener("click", async () => {
+  const newText = pageEditTextarea.value.trim();
+  if (!newText) return;
+  storyPages[0].caption = newText;
+  storyPages[0].sceneDescription = newText;
+  regenerateBtn.disabled = true;
+  regenerateBtn.textContent = "Зурж байна…";
+  await generateFirstPage();
+  regenerateBtn.textContent = "🔄 Шинэчилж зурах";
+});
 
 function setState(state) {
   resultPlaceholder.hidden = state !== "placeholder";
@@ -401,6 +437,7 @@ function setState(state) {
     orderCtaArea.hidden = true;
     orderForm.hidden = true;
     orderDone.hidden = true;
+    pageEditArea.hidden = true;
   }
 }
 

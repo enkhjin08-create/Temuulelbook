@@ -120,9 +120,9 @@
       </label>
 
       <label class="field">
-        <span class="field-label">Сонирхол</span>
-        <input type="text" id="childInterests" name="childInterests" placeholder="Жишээ: диносавр, сансар, машин" required maxlength="120" />
-        <span class="upload-hint">Таслалаар ялгаж 2-3 сонирхлоо бичээрэй</span>
+        <span class="field-label">Сонирхол эсвэл номын агуулга</span>
+        <textarea id="childInterests" name="childInterests" rows="3" placeholder="Жишээ: Хөлбөмбөгт дуртай, аавтайгаа цуг зурагтаар үздэг" required maxlength="400"></textarea>
+        <span class="upload-hint">Нэг гол сэдэв эсвэл товч агуулга бичихэд хангалттай — олон зүйл жагсаах шаардлагагүй</span>
       </label>
 
       <div class="field">
@@ -190,6 +190,14 @@
           <img id="generatedImg" alt="Үлгэрийн дүр болсон зураг" />
           <figcaption id="generatedCaption">Үлгэрийн дүр</figcaption>
         </figure>
+      </div>
+
+      <div class="page-edit-area" id="pageEditArea" hidden>
+        <button type="button" class="btn-edit-text" id="editTextToggleBtn">✎ Текстийг засаж, дахин зурах</button>
+        <div class="page-edit-box" id="pageEditBox" hidden>
+          <textarea id="pageEditTextarea" rows="3"></textarea>
+          <button type="button" class="btn-regenerate" id="regenerateBtn">🔄 Шинэчилж зурах</button>
+        </div>
       </div>
 
       <div class="order-cta-area" id="orderCtaArea" hidden>
