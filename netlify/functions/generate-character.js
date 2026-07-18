@@ -22,7 +22,7 @@ const { isAdminPinValid } = require("./_admin-auth");
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
 
-const DAILY_LIMIT = 4; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо (admin PIN-тэй бол хамаарахгүй) — 3 түүх + 1 давталтын нөөц
+const DAILY_LIMIT = 8; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо (admin PIN-тэй бол хамаарахгүй)
 
 function getGalleryStore() {
   const siteID = process.env.BLOBS_SITE_ID;
