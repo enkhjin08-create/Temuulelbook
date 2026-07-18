@@ -9,6 +9,7 @@
 
 const { getStore } = require("@netlify/blobs");
 const { checkAdminPin } = require("./_admin-auth");
+const { sendEmail } = require("./_email");
 
 function getOrdersStore() {
   const siteID = process.env.BLOBS_SITE_ID;
@@ -58,6 +59,7 @@ exports.handler = async (event) => {
     order.generatedPages.sort((a, b) => a.pageIndex - b.pageIndex);
 
     const isLastPage = pageIndex >= order.storyPages.length - 1;
+    const wasAlreadyCompleted = order.status === "completed";
     if (isLastPage && order.status !== "cancelled") {
       order.status = "completed";
     }
@@ -66,6 +68,7 @@ exports.handler = async (event) => {
     await store.set(id, JSON.stringify(order), {
       metadata: {
         childName: order.childName,
+        customerEmail: order.customerEmail || "",
         status: order.status,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
@@ -76,12 +79,30 @@ exports.handler = async (event) => {
       },
     });
 
+    if (isLastPage && !wasAlreadyCompleted && order.customerEmail) {
+      sendEmail({
+        to: order.customerEmail,
+        subject: "Таны хүүхдийн ном бэлэн боллоо! — Зөвхөн Түүнд Kids Book",
+        html: `
+          <h2>🎉 Ном бэлэн боллоо!</h2>
+          <p><b>${escapeHtml(order.childName)}</b>-ийн ${order.storyPages.length} хуудас бүхий үлгэр бүрэн зурагдаж дууслаа.</p>
+          <p>Бид тантай удахгүй холбогдож, хэвлэлт болон хүргэлтийн дэлгэрэнгүйг илгээнэ.</p>
+        `,
+      }).catch(() => {});
+    }
+
     return respond(200, { ok: true, status: order.status, pageCount: order.generatedPages.length });
   } catch (err) {
     console.error("append-order-page error:", err);
     return respond(500, { error: String(err && err.message ? err.message : err) });
   }
 };
+
+function escapeHtml(str) {
+  return String(str == null ? "" : str).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
 
 function respond(statusCode, obj) {
   return {

@@ -18,4 +18,14 @@ function checkAdminPin(event) {
   return { ok: true };
 }
 
-module.exports = { checkAdminPin };
+// Бусад (admin-only биш) function-уудад "энэ хүсэлт admin-аас ирсэн үү?"
+// гэдгийг богино асуудаггүйгээр шалгахад ашиглана (жишээ нь rate limit,
+// login шаардлагаас чөлөөлөх зэрэгт).
+function isAdminPinValid(event) {
+  const expectedPin = process.env.ADMIN_PIN;
+  if (!expectedPin) return false;
+  const providedPin = event.headers && (event.headers["x-admin-pin"] || event.headers["X-Admin-Pin"]);
+  return providedPin === expectedPin;
+}
+
+module.exports = { checkAdminPin, isAdminPinValid };

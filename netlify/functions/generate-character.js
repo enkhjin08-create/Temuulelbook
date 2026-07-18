@@ -15,9 +15,14 @@
 
 const { buildPagePrompt } = require("./stories");
 const { getStore } = require("@netlify/blobs");
+const { checkRateLimit } = require("./_rate-limit");
+const { checkSession } = require("./_auth");
+const { isAdminPinValid } = require("./_admin-auth");
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
+
+const DAILY_LIMIT = 4; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо (admin PIN-тэй бол хамаарахгүй) — 3 түүх + 1 давталтын нөөц
 
 function getGalleryStore() {
   const siteID = process.env.BLOBS_SITE_ID;
@@ -31,6 +36,20 @@ function getGalleryStore() {
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return respond(405, { error: "Зөвхөн POST хүсэлт хүлээн авна." });
+  }
+
+  if (!isAdminPinValid(event)) {
+    const session = await checkSession(event);
+    if (!session.ok) {
+      return respond(401, { error: "Энэ үйлдлийг хийхийн тулд нэвтэрч орно уу." });
+    }
+  }
+
+  const rateLimit = await checkRateLimit(event, "generate-character", DAILY_LIMIT);
+  if (!rateLimit.allowed) {
+    return respond(429, {
+      error: "Өнөөдрийн хязгаарт хүрлээ. Маргааш дахин оролдоно уу, эсвэл бидэнтэй холбогдоно уу.",
+    });
   }
 
   let body;

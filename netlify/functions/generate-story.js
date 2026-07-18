@@ -13,10 +13,29 @@ const GEMINI_TEXT_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
 const PAGE_COUNT = 10;
+const DAILY_LIMIT = 3; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо
+
+const { checkRateLimit } = require("./_rate-limit");
+const { checkSession } = require("./_auth");
+const { isAdminPinValid } = require("./_admin-auth");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return respond(405, { error: "Зөвхөн POST хүсэлт хүлээн авна." });
+  }
+
+  if (!isAdminPinValid(event)) {
+    const session = await checkSession(event);
+    if (!session.ok) {
+      return respond(401, { error: "Энэ үйлдлийг хийхийн тулд нэвтэрч орно уу." });
+    }
+  }
+
+  const rateLimit = await checkRateLimit(event, "generate-story", DAILY_LIMIT);
+  if (!rateLimit.allowed) {
+    return respond(429, {
+      error: "Өнөөдрийн хязгаарт хүрлээ. Маргааш дахин оролдоно уу, эсвэл бидэнтэй холбогдоно уу.",
+    });
   }
 
   let body;
