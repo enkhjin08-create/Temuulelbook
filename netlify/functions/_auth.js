@@ -83,6 +83,35 @@ async function checkSession(event) {
   }
 }
 
+function getVerifyStore() {
+  const siteID = process.env.BLOBS_SITE_ID;
+  const token = process.env.BLOBS_TOKEN;
+  if (siteID && token) {
+    return getStore({ name: "pixietale-email-verify", siteID, token });
+  }
+  return getStore("pixietale-email-verify");
+}
+
+const VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24 цаг
+
+async function createVerificationToken(email) {
+  const store = getVerifyStore();
+  const token = generateToken();
+  const now = Date.now();
+  await store.set(token, JSON.stringify({ email, createdAt: now, expiresAt: now + VERIFY_TTL_MS }));
+  return token;
+}
+
+async function consumeVerificationToken(token) {
+  const store = getVerifyStore();
+  const raw = await store.get(token);
+  if (!raw) return { ok: false };
+  const data = JSON.parse(raw);
+  await store.delete(token);
+  if (data.expiresAt < Date.now()) return { ok: false };
+  return { ok: true, email: data.email };
+}
+
 module.exports = {
   getUsersStore,
   normalizeEmail,
@@ -91,4 +120,6 @@ module.exports = {
   verifyPassword,
   createSession,
   checkSession,
+  createVerificationToken,
+  consumeVerificationToken,
 };

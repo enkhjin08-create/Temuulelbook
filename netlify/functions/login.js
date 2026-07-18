@@ -35,6 +35,9 @@ exports.handler = async (event) => {
     if (!verifyPassword(password, user.passwordHash)) {
       return respond(401, { error: "И-мэйл эсвэл нууц үг буруу байна." });
     }
+    if (!user.verified) {
+      return respond(403, { error: "И-мэйлээ баталгаажуулаагүй байна. Имэйл хаягаа шалгаж, холбоос дээр дарна уу." });
+    }
 
     const token = await createSession(email);
     return respond(200, { token, email });
