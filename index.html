@@ -45,7 +45,9 @@
     </section>
 
     <div class="auth-card" id="authCard">
-      <div class="auth-tabs">
+      <div class="verify-status" id="verifyStatus" hidden></div>
+
+      <div class="auth-tabs" id="authTabs">
         <button type="button" id="tabLogin" class="auth-tab active">Нэвтрэх</button>
         <button type="button" id="tabSignup" class="auth-tab">Бүртгүүлэх</button>
       </div>
@@ -75,6 +77,11 @@
         <button type="submit" id="signupSubmitBtn" class="btn-generate"><span class="btn-label">Бүртгүүлэх</span></button>
         <p class="auth-error" id="signupError" hidden></p>
       </form>
+
+      <div class="auth-success" id="signupPending" hidden>
+        <p>📧 Баталгаажуулах холбоос таны и-мэйл рүү илгээгдлээ.</p>
+        <p class="auth-success-hint">Имэйлээ шалгаад холбоос дээр дарж, бүртгэлээ идэвхжүүлнэ үү.</p>
+      </div>
     </div>
   </section>
 

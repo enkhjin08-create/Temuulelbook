@@ -58,6 +58,9 @@ const signupEmailInput = document.getElementById("signupEmail");
 const signupPasswordInput = document.getElementById("signupPassword");
 const signupSubmitBtn = document.getElementById("signupSubmitBtn");
 const signupError = document.getElementById("signupError");
+const signupPending = document.getElementById("signupPending");
+const verifyStatus = document.getElementById("verifyStatus");
+const authTabs = document.getElementById("authTabs");
 
 let authToken = localStorage.getItem("ztAuthToken") || null;
 let authEmail = localStorage.getItem("ztAuthEmail") || null;
@@ -422,6 +425,42 @@ function showLanding() {
 }
 
 async function checkExistingSession() {
+  // Имэйл дэх баталгаажуулах холбоос дээр дарж ирсэн эсэхийг эхлээд шалгана
+  const urlParams = new URLSearchParams(window.location.search);
+  const verifyToken = urlParams.get("verify");
+
+  if (verifyToken) {
+    authTabs.hidden = true;
+    loginForm.hidden = true;
+    signupForm.hidden = true;
+    signupPending.hidden = true;
+    verifyStatus.hidden = false;
+    verifyStatus.className = "verify-status verify-loading";
+    verifyStatus.textContent = "И-мэйлээ баталгаажуулж байна…";
+
+    // URL-аас token-ыг арилгана (дахин refresh хийхэд дахин ашиглагдахгүй)
+    window.history.replaceState({}, "", window.location.pathname);
+
+    try {
+      const res = await fetch(`/.netlify/functions/verify-email?token=${encodeURIComponent(verifyToken)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Баталгаажуулахад алдаа гарлаа.");
+      }
+      authToken = data.token;
+      localStorage.setItem("ztAuthToken", authToken);
+      localStorage.setItem("ztAuthEmail", data.email);
+      showApp(data.email);
+      return;
+    } catch (err) {
+      verifyStatus.className = "verify-status verify-error";
+      verifyStatus.textContent = err.message;
+      authTabs.hidden = false;
+      loginForm.hidden = false;
+      return;
+    }
+  }
+
   if (!authToken) {
     showLanding();
     return;
@@ -448,6 +487,7 @@ tabLogin.addEventListener("click", () => {
   tabSignup.classList.remove("active");
   loginForm.hidden = false;
   signupForm.hidden = true;
+  signupPending.hidden = true;
 });
 
 tabSignup.addEventListener("click", () => {
@@ -455,6 +495,7 @@ tabSignup.addEventListener("click", () => {
   tabLogin.classList.remove("active");
   signupForm.hidden = false;
   loginForm.hidden = true;
+  signupPending.hidden = true;
 });
 
 loginForm.addEventListener("submit", async (e) => {
@@ -465,7 +506,7 @@ loginForm.addEventListener("submit", async (e) => {
   try {
     const res = await fetch("/.netlify/functions/login", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-auth-token": authToken },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: loginEmailInput.value.trim(),
         password: loginPasswordInput.value,
@@ -495,7 +536,7 @@ signupForm.addEventListener("submit", async (e) => {
   try {
     const res = await fetch("/.netlify/functions/signup", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-auth-token": authToken },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: signupEmailInput.value.trim(),
         password: signupPasswordInput.value,
@@ -505,10 +546,9 @@ signupForm.addEventListener("submit", async (e) => {
     if (!res.ok) {
       throw new Error(data.error || "Бүртгүүлэхэд алдаа гарлаа.");
     }
-    authToken = data.token;
-    localStorage.setItem("ztAuthToken", authToken);
-    localStorage.setItem("ztAuthEmail", data.email);
-    showApp(data.email);
+    signupForm.hidden = true;
+    authTabs.hidden = true;
+    signupPending.hidden = false;
   } catch (err) {
     signupError.textContent = err.message;
     signupError.hidden = false;
