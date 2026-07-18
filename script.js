@@ -39,6 +39,29 @@ const orderNoteInput = document.getElementById("orderNote");
 const orderSubmitBtn = document.getElementById("orderSubmitBtn");
 const orderDone = document.getElementById("orderDone");
 
+// ---------- auth ----------
+const landingSection = document.getElementById("landingSection");
+const appSection = document.getElementById("appSection");
+const authStatus = document.getElementById("authStatus");
+const userEmailLabel = document.getElementById("userEmailLabel");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const tabLogin = document.getElementById("tabLogin");
+const tabSignup = document.getElementById("tabSignup");
+const loginForm = document.getElementById("loginForm");
+const signupForm = document.getElementById("signupForm");
+const loginEmailInput = document.getElementById("loginEmail");
+const loginPasswordInput = document.getElementById("loginPassword");
+const loginSubmitBtn = document.getElementById("loginSubmitBtn");
+const loginError = document.getElementById("loginError");
+const signupEmailInput = document.getElementById("signupEmail");
+const signupPasswordInput = document.getElementById("signupPassword");
+const signupSubmitBtn = document.getElementById("signupSubmitBtn");
+const signupError = document.getElementById("signupError");
+
+let authToken = localStorage.getItem("ztAuthToken") || null;
+let authEmail = localStorage.getItem("ztAuthEmail") || null;
+
 let photoDataUrl = null;
 
 // Түүхийн явцын төлөв
@@ -128,7 +151,7 @@ function sleep(ms) {
 }
 
 // ---------- сүлжээ/сервер талын түр зуурын алдааг автоматаар дахин оролддог fetch ----------
-async function fetchJsonWithRetry(url, options, { maxRetries = 3, retryDelayMs = 2500, timeoutMs = 29000, onRetry } = {}) {
+async function fetchJsonWithRetry(url, options, { maxRetries = 5, retryDelayMs = 3000, timeoutMs = 29000, onRetry } = {}) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -240,7 +263,7 @@ orderForm.addEventListener("submit", async (e) => {
   try {
     await fetchJsonWithRetry("/.netlify/functions/create-order", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-auth-token": authToken },
       body: JSON.stringify({
         childName: currentChildName,
         gender: currentGender,
@@ -279,7 +302,7 @@ async function composeStory(childName, age, gender, interests) {
       "/.netlify/functions/generate-story",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-auth-token": authToken },
         body: JSON.stringify({ childName, age, gender, interests }),
       },
       {
@@ -331,7 +354,7 @@ async function generateFirstPage() {
       "/.netlify/functions/generate-character",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-auth-token": authToken },
         body: JSON.stringify({
           childName: currentChildName,
           gender: currentGender,
@@ -377,3 +400,123 @@ function setState(state) {
     orderDone.hidden = true;
   }
 }
+
+// ================= AUTH =================
+
+function showApp(email) {
+  authEmail = email;
+  landingSection.hidden = true;
+  appSection.hidden = false;
+  authStatus.hidden = false;
+  userEmailLabel.textContent = email;
+}
+
+function showLanding() {
+  authToken = null;
+  authEmail = null;
+  localStorage.removeItem("ztAuthToken");
+  localStorage.removeItem("ztAuthEmail");
+  landingSection.hidden = false;
+  appSection.hidden = true;
+  authStatus.hidden = true;
+}
+
+async function checkExistingSession() {
+  if (!authToken) {
+    showLanding();
+    return;
+  }
+  try {
+    const res = await fetch("/.netlify/functions/me", {
+      headers: { "x-auth-token": authToken },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      showApp(data.email);
+    } else {
+      showLanding();
+    }
+  } catch (e) {
+    showLanding();
+  }
+}
+
+checkExistingSession();
+
+tabLogin.addEventListener("click", () => {
+  tabLogin.classList.add("active");
+  tabSignup.classList.remove("active");
+  loginForm.hidden = false;
+  signupForm.hidden = true;
+});
+
+tabSignup.addEventListener("click", () => {
+  tabSignup.classList.add("active");
+  tabLogin.classList.remove("active");
+  signupForm.hidden = false;
+  loginForm.hidden = true;
+});
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.hidden = true;
+  loginSubmitBtn.disabled = true;
+
+  try {
+    const res = await fetch("/.netlify/functions/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-auth-token": authToken },
+      body: JSON.stringify({
+        email: loginEmailInput.value.trim(),
+        password: loginPasswordInput.value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Нэвтрэхэд алдаа гарлаа.");
+    }
+    authToken = data.token;
+    localStorage.setItem("ztAuthToken", authToken);
+    localStorage.setItem("ztAuthEmail", data.email);
+    showApp(data.email);
+  } catch (err) {
+    loginError.textContent = err.message;
+    loginError.hidden = false;
+  } finally {
+    loginSubmitBtn.disabled = false;
+  }
+});
+
+signupForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  signupError.hidden = true;
+  signupSubmitBtn.disabled = true;
+
+  try {
+    const res = await fetch("/.netlify/functions/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-auth-token": authToken },
+      body: JSON.stringify({
+        email: signupEmailInput.value.trim(),
+        password: signupPasswordInput.value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Бүртгүүлэхэд алдаа гарлаа.");
+    }
+    authToken = data.token;
+    localStorage.setItem("ztAuthToken", authToken);
+    localStorage.setItem("ztAuthEmail", data.email);
+    showApp(data.email);
+  } catch (err) {
+    signupError.textContent = err.message;
+    signupError.hidden = false;
+  } finally {
+    signupSubmitBtn.disabled = false;
+  }
+});
+
+logoutBtn.addEventListener("click", () => {
+  showLanding();
+});

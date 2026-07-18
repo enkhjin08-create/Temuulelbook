@@ -22,19 +22,64 @@
 
 <header class="topbar">
   <div class="logo">Зөвхөн <span>Түүнд</span> <small>kids book</small></div>
-  <a href="/gallery.html" class="topbar-badge" style="text-decoration:none;">Бүх зургууд →</a>
+  <div class="topbar-right">
+    <span class="auth-status" id="authStatus" hidden>
+      <span id="userEmailLabel"></span>
+      <button type="button" id="logoutBtn" class="logout-link">Гарах</button>
+    </span>
+    <a href="/gallery.html" class="topbar-badge" style="text-decoration:none;">Бүх зургууд →</a>
+  </div>
 </header>
 
 <main>
 
-  <section class="hero">
-    <p class="eyebrow">Зөвхөн түүнд зориулав</p>
-    <h1>Хүүхдийнхээ зургийг<br><em>үлгэрийн дүр</em> болгоё</h1>
-    <p class="hero-sub">
-      Нэр болон нэг гэрэл зургийг оруулаарай — таны хүүхэд түүхийн гол баатар болон
-      номын хуудсан дээр амилах болно.
-    </p>
+  <!-- Нэвтрээгүй үед харагдах танилцуулга + нэвтрэх/бүртгүүлэх хэсэг -->
+  <section id="landingSection">
+    <section class="hero">
+      <p class="eyebrow">Зөвхөн түүнд зориулав</p>
+      <h1>Хүүхдийнхээ зургийг<br><em>үлгэрийн дүр</em> болгоё</h1>
+      <p class="hero-sub">
+        Нэр болон нэг гэрэл зургийг оруулаарай — таны хүүхэд түүхийн гол баатар болон
+        номын хуудсан дээр амилах болно. Үргэлжлүүлэхийн тулд эхлээд нэвтэрч орно уу.
+      </p>
+    </section>
+
+    <div class="auth-card" id="authCard">
+      <div class="auth-tabs">
+        <button type="button" id="tabLogin" class="auth-tab active">Нэвтрэх</button>
+        <button type="button" id="tabSignup" class="auth-tab">Бүртгүүлэх</button>
+      </div>
+
+      <form id="loginForm" class="auth-form">
+        <label class="field">
+          <span class="field-label">И-мэйл</span>
+          <input type="email" id="loginEmail" placeholder="таны@имэйл.com" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Нууц үг</span>
+          <input type="password" id="loginPassword" placeholder="••••••" required />
+        </label>
+        <button type="submit" id="loginSubmitBtn" class="btn-generate"><span class="btn-label">Нэвтрэх</span></button>
+        <p class="auth-error" id="loginError" hidden></p>
+      </form>
+
+      <form id="signupForm" class="auth-form" hidden>
+        <label class="field">
+          <span class="field-label">И-мэйл</span>
+          <input type="email" id="signupEmail" placeholder="таны@имэйл.com" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Нууц үг</span>
+          <input type="password" id="signupPassword" placeholder="доод тал нь 6 тэмдэгт" required minlength="6" />
+        </label>
+        <button type="submit" id="signupSubmitBtn" class="btn-generate"><span class="btn-label">Бүртгүүлэх</span></button>
+        <p class="auth-error" id="signupError" hidden></p>
+      </form>
+    </div>
   </section>
+
+  <!-- Нэвтэрсний дараа харагдах гол апп -->
+  <div id="appSection" hidden>
 
   <section class="story-card" id="storyCard">
     <div class="story-cover" aria-hidden="true">📖</div>
@@ -158,12 +203,21 @@
       </form>
 
       <div class="order-done" id="orderDone" hidden>
-        <p>🎉 Захиалга бүртгэгдлээ! Бид тантай удахгүй холбогдож, төлбөрийн дэлгэрэнгүйг илгээнэ.</p>
+        <p>🎉 Захиалга бүртгэгдлээ! Дараах дансанд <b>120,000₮</b> шилжүүлнэ үү:</p>
+        <div class="bank-info">
+          <div><span>Банк:</span> <b>Хаан банк</b></div>
+          <div><span>Данс:</span> <b>MN490005005304653256</b></div>
+          <div><span>Хүлээн авагч:</span> <b>Энхжин</b></div>
+        </div>
+        <p class="order-done-note">Төлбөр баталгаажсаны дараа бид имэйлээр мэдэгдэнэ. Дансны мэдээллийг таны имэйл хаяг руу мөн илгээлээ.</p>
       </div>
 
     </div>
 
   </section>
+
+  </div>
+  <!-- /appSection -->
 
 </main>
 
