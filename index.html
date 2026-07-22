@@ -144,7 +144,7 @@
         <span class="btn-spark">✦</span>
       </button>
 
-      <p class="form-note">Энэ бол дотоод туршилт — үр дүн бүрийг Зөвхөн Түүнд баг хянан баталгаажуулна.</p>
+      <p class="form-note">Үр дүн бүрийг Зөвхөн Түүнд баг хянан баталгаажуулна.</p>
     </form>
 
     <div class="result-area" id="resultArea">
@@ -211,8 +211,12 @@
           <input type="tel" id="orderPhone" placeholder="9911XXXX" required />
         </label>
         <label class="field">
+          <span class="field-label">Хүргэлтийн хаяг</span>
+          <textarea id="orderAddress" rows="2" placeholder="Дүүрэг, хороо, байр, орц, давхар, тоот" required maxlength="300"></textarea>
+        </label>
+        <label class="field">
           <span class="field-label">Нэмэлт тэмдэглэл (заавал биш)</span>
-          <input type="text" id="orderNote" placeholder="Хаяг, хүргэлтийн мэдээлэл г.м." maxlength="300" />
+          <input type="text" id="orderNote" placeholder="Бусад мэдээлэл" maxlength="300" />
         </label>
         <button type="submit" class="btn-order-submit" id="orderSubmitBtn">Захиалга баталгаажуулах</button>
       </form>
@@ -237,7 +241,7 @@
 </main>
 
 <footer>
-  <p>Зөвхөн Түүнд Kids Book — дотоод туршилтын хэрэгсэл</p>
+  <p>Зөвхөн Түүнд Kids Book</p>
 </footer>
 
 <script src="script.js"></script>
