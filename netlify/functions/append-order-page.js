@@ -10,6 +10,7 @@
 const { getStore } = require("@netlify/blobs");
 const { checkAdminPin } = require("./_admin-auth");
 const { sendEmail } = require("./_email");
+const { saveOrderImage } = require("./_order-images");
 
 function getOrdersStore() {
   const siteID = process.env.BLOBS_SITE_ID;
@@ -48,9 +49,13 @@ exports.handler = async (event) => {
     }
     const order = JSON.parse(raw);
 
+    // Зургийг тусад нь Blobs-д хадгалж, зөвхөн key-г л order-д үлдээнэ
+    const imageKey = `${id}:page${pageIndex}`;
+    await saveOrderImage(imageKey, imageBase64);
+
     // Хэрэв тухайн pageIndex аль хэдийн байгаа бол шинэчилнэ, үгүй бол нэмнэ
     const existingIdx = order.generatedPages.findIndex((p) => p.pageIndex === pageIndex);
-    const pageEntry = { pageIndex, imageBase64, caption: caption || "" };
+    const pageEntry = { pageIndex, imageKey, caption: caption || "" };
     if (existingIdx >= 0) {
       order.generatedPages[existingIdx] = pageEntry;
     } else {

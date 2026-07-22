@@ -5,7 +5,7 @@
 //
 // Хүлээн авах (POST JSON):
 //   { childName, gender, age, interests, storyTitle, storyPages,
-//     photoBase64, firstPageImageBase64, contactPhone, contactNote }
+//     photoBase64, firstPageImageBase64, contactPhone, contactAddress, contactNote }
 //
 // Буцаах (200 JSON): { id, bank: { bankName, accountNumber, accountHolder } }
 
@@ -13,6 +13,7 @@ const { getStore } = require("@netlify/blobs");
 const { checkSession } = require("./_auth");
 const { sendEmail } = require("./_email");
 const { resetRateLimit } = require("./_rate-limit");
+const { saveOrderImage } = require("./_order-images");
 
 const PRICE = 120000;
 const ADMIN_NOTIFY_EMAIL = "info.zuvhuntuund@gmail.com";
@@ -50,7 +51,7 @@ exports.handler = async (event) => {
 
   const {
     childName, gender, age, interests, storyTitle, storyPages,
-    photoBase64, firstPageImageBase64, contactPhone, contactNote,
+    photoBase64, firstPageImageBase64, contactPhone, contactAddress, contactNote,
   } = body;
 
   if (!childName || typeof childName !== "string") {
@@ -65,10 +66,25 @@ exports.handler = async (event) => {
   if (!contactPhone || typeof contactPhone !== "string") {
     return respond(400, { error: "Утасны дугаар оруулна уу." });
   }
+  if (!contactAddress || typeof contactAddress !== "string") {
+    return respond(400, { error: "Хүргэлтийн хаяг оруулна уу." });
+  }
 
   try {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
+
+    // Зургуудыг захиалгын JSON дотор шууд хадгалахгүй, тусад нь Blobs-д
+    // хадгалж, зөвхөн жижиг "key" л order-д үлдээнэ (6MB хариултын
+    // хязгаарт хүрэхээс сэргийлнэ)
+    const page0ImageKey = `${id}:page0`;
+    await saveOrderImage(page0ImageKey, firstPageImageBase64);
+
+    let originalPhotoKey = "";
+    if (photoBase64) {
+      originalPhotoKey = `${id}:original`;
+      await saveOrderImage(originalPhotoKey, photoBase64);
+    }
 
     const order = {
       id,
@@ -79,11 +95,12 @@ exports.handler = async (event) => {
       interests: interests || "",
       storyTitle: storyTitle || "",
       storyPages,
-      photoBase64: photoBase64 || "",
+      originalPhotoKey,
       generatedPages: [
-        { pageIndex: 0, imageBase64: firstPageImageBase64, caption: storyPages[0].caption || "" },
+        { pageIndex: 0, imageKey: page0ImageKey, caption: storyPages[0].caption || "" },
       ],
       contactPhone,
+      contactAddress,
       contactNote: contactNote || "",
       status: "new",
       price: PRICE,
@@ -102,6 +119,7 @@ exports.handler = async (event) => {
         totalPages: storyPages.length,
         pageCount: 1,
         contactPhone,
+        contactAddress,
         price: PRICE,
       },
     });
@@ -116,6 +134,7 @@ exports.handler = async (event) => {
         <p><b>Сонирхол:</b> ${escapeHtml(interests || "")}</p>
         <p><b>Түүх:</b> ${escapeHtml(storyTitle || "")}</p>
         <p><b>Утас:</b> ${escapeHtml(contactPhone)}</p>
+        <p><b>Хаяг:</b> ${escapeHtml(contactAddress)}</p>
         <p><b>Тэмдэглэл:</b> ${escapeHtml(contactNote || "—")}</p>
         <p><b>Захиалагчийн и-мэйл:</b> ${escapeHtml(session.email)}</p>
         <p><b>Үнэ:</b> ${PRICE.toLocaleString()}₮</p>
