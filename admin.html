@@ -203,6 +203,29 @@ function adminFetch(url, options = {}) {
   });
 }
 
+// <img> tag-д custom header нэмэх боломжгүй тул зургийг fetch-ээр татаж,
+// data URL болгож src-д тавина.
+async function loadOrderImageInto(imgEl, key) {
+  try {
+    const dataUrl = await fetchOrderImageDataUrl(key);
+    imgEl.src = dataUrl;
+  } catch (err) {
+    imgEl.alt = "Зураг ачааллагдсангүй";
+  }
+}
+
+async function fetchOrderImageDataUrl(key) {
+  const res = await adminFetch(`/.netlify/functions/order-image?key=${encodeURIComponent(key)}`);
+  if (!res.ok) throw new Error(`Зураг татахад алдаа гарлаа (${res.status})`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -297,6 +320,7 @@ function renderOrderDetail(order) {
       <div><b>Хүйс:</b> ${escapeHtml(order.gender)}</div>
       <div><b>Сонирхол:</b> ${escapeHtml(order.interests)}</div>
       <div><b>Утас:</b> ${escapeHtml(order.contactPhone)}</div>
+      <div><b>Хаяг:</b> ${escapeHtml(order.contactAddress || "—")}</div>
       <div><b>Тэмдэглэл:</b> ${escapeHtml(order.contactNote || "—")}</div>
       <div><b>Үнэ:</b> ${Number(order.price || 0).toLocaleString()}₮</div>
     </div>
@@ -326,7 +350,7 @@ function renderOrderDetail(order) {
       const figure = document.createElement("figure");
       figure.className = "polaroid generated";
       const img = document.createElement("img");
-      img.src = p.imageBase64;
+      loadOrderImageInto(img, p.imageKey);
       const caption = document.createElement("figcaption");
       caption.textContent = `${p.pageIndex + 1}-р хуудас: ${p.caption || ""}`;
       figure.appendChild(img);
@@ -365,6 +389,8 @@ function renderOrderDetail(order) {
 
       try {
         const lastPage = order.generatedPages[order.generatedPages.length - 1];
+        const referenceImageBase64 = await fetchOrderImageDataUrl(lastPage.imageKey);
+
         const genData = await fetchJsonWithRetry(
           "/.netlify/functions/generate-character",
           {
@@ -373,7 +399,7 @@ function renderOrderDetail(order) {
             body: JSON.stringify({
               childName: order.childName,
               gender: order.gender,
-              photoBase64: lastPage.imageBase64,
+              photoBase64: referenceImageBase64,
               pageIndex: nextIndex,
               totalPages: order.storyPages.length,
               sceneDescription: nextPage.sceneDescription,
