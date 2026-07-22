@@ -63,6 +63,7 @@
         </label>
         <button type="submit" id="loginSubmitBtn" class="btn-generate"><span class="btn-label">Нэвтрэх</span></button>
         <p class="auth-error" id="loginError" hidden></p>
+        <button type="button" id="forgotPasswordLink" class="link-btn">Нууц үг мартсан?</button>
       </form>
 
       <form id="signupForm" class="auth-form" hidden>
@@ -76,6 +77,32 @@
         </label>
         <button type="submit" id="signupSubmitBtn" class="btn-generate"><span class="btn-label">Бүртгүүлэх</span></button>
         <p class="auth-error" id="signupError" hidden></p>
+      </form>
+
+      <form id="forgotPasswordForm" class="auth-form" hidden>
+        <p class="auth-form-hint">Бүртгэлтэй и-мэйл хаягаа оруулбал, нууц үг сэргээх холбоос илгээнэ.</p>
+        <label class="field">
+          <span class="field-label">И-мэйл</span>
+          <input type="email" id="forgotEmail" placeholder="таны@имэйл.com" required />
+        </label>
+        <button type="submit" id="forgotSubmitBtn" class="btn-generate"><span class="btn-label">Холбоос илгээх</span></button>
+        <p class="auth-error" id="forgotError" hidden></p>
+        <button type="button" id="backToLoginLink" class="link-btn">← Нэвтрэх хэсэг рүү буцах</button>
+      </form>
+
+      <div class="auth-success" id="forgotPending" hidden>
+        <p>📧 Нууц үг сэргээх холбоос таны и-мэйл рүү илгээгдлээ.</p>
+        <p class="auth-success-hint">Имэйлээ шалгаад холбоос дээр дарж, шинэ нууц үгээ тохируулна уу.</p>
+      </div>
+
+      <form id="resetPasswordForm" class="auth-form" hidden>
+        <p class="auth-form-hint">Шинэ нууц үгээ оруулна уу.</p>
+        <label class="field">
+          <span class="field-label">Шинэ нууц үг</span>
+          <input type="password" id="resetNewPassword" placeholder="доод тал нь 6 тэмдэгт" required minlength="6" />
+        </label>
+        <button type="submit" id="resetSubmitBtn" class="btn-generate"><span class="btn-label">Нууц үг шинэчлэх</span></button>
+        <p class="auth-error" id="resetError" hidden></p>
       </form>
 
       <div class="auth-success" id="signupPending" hidden>

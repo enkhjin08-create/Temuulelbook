@@ -40,6 +40,7 @@ const regenerateBtn = document.getElementById("regenerateBtn");
 const orderCtaBtn = document.getElementById("orderCtaBtn");
 const orderForm = document.getElementById("orderForm");
 const orderPhoneInput = document.getElementById("orderPhone");
+const orderAddressInput = document.getElementById("orderAddress");
 const orderNoteInput = document.getElementById("orderNote");
 const orderSubmitBtn = document.getElementById("orderSubmitBtn");
 const orderDone = document.getElementById("orderDone");
@@ -66,6 +67,19 @@ const signupError = document.getElementById("signupError");
 const signupPending = document.getElementById("signupPending");
 const verifyStatus = document.getElementById("verifyStatus");
 const authTabs = document.getElementById("authTabs");
+
+const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+const forgotPasswordForm = document.getElementById("forgotPasswordForm");
+const forgotEmailInput = document.getElementById("forgotEmail");
+const forgotSubmitBtn = document.getElementById("forgotSubmitBtn");
+const forgotError = document.getElementById("forgotError");
+const forgotPending = document.getElementById("forgotPending");
+const backToLoginLink = document.getElementById("backToLoginLink");
+
+const resetPasswordForm = document.getElementById("resetPasswordForm");
+const resetNewPasswordInput = document.getElementById("resetNewPassword");
+const resetSubmitBtn = document.getElementById("resetSubmitBtn");
+const resetError = document.getElementById("resetError");
 
 let authToken = localStorage.getItem("ztAuthToken") || null;
 let authEmail = localStorage.getItem("ztAuthEmail") || null;
@@ -265,6 +279,9 @@ orderForm.addEventListener("submit", async (e) => {
   const phone = orderPhoneInput.value.trim();
   if (!phone) { orderPhoneInput.focus(); return; }
 
+  const address = orderAddressInput.value.trim();
+  if (!address) { orderAddressInput.focus(); return; }
+
   orderSubmitBtn.disabled = true;
   orderSubmitBtn.textContent = "Илгээж байна…";
 
@@ -282,6 +299,7 @@ orderForm.addEventListener("submit", async (e) => {
         photoBase64: photoDataUrl,
         firstPageImageBase64,
         contactPhone: phone,
+        contactAddress: address,
         contactNote: orderNoteInput.value.trim(),
       }),
     });
@@ -461,16 +479,34 @@ function showLanding() {
   authStatus.hidden = true;
 }
 
+function hideAllAuthPanels() {
+  authTabs.hidden = true;
+  loginForm.hidden = true;
+  signupForm.hidden = true;
+  signupPending.hidden = true;
+  forgotPasswordForm.hidden = true;
+  forgotPending.hidden = true;
+  resetPasswordForm.hidden = true;
+  verifyStatus.hidden = true;
+}
+
 async function checkExistingSession() {
-  // Имэйл дэх баталгаажуулах холбоос дээр дарж ирсэн эсэхийг эхлээд шалгана
   const urlParams = new URLSearchParams(window.location.search);
   const verifyToken = urlParams.get("verify");
+  const resetToken = urlParams.get("reset");
 
+  // Нууц үг сэргээх холбоос дээр дарж ирсэн эсэхийг шалгана
+  if (resetToken) {
+    hideAllAuthPanels();
+    resetPasswordForm.hidden = false;
+    resetPasswordForm.dataset.token = resetToken;
+    window.history.replaceState({}, "", window.location.pathname);
+    return;
+  }
+
+  // Имэйл дэх баталгаажуулах холбоос дээр дарж ирсэн эсэхийг эхлээд шалгана
   if (verifyToken) {
-    authTabs.hidden = true;
-    loginForm.hidden = true;
-    signupForm.hidden = true;
-    signupPending.hidden = true;
+    hideAllAuthPanels();
     verifyStatus.hidden = false;
     verifyStatus.className = "verify-status verify-loading";
     verifyStatus.textContent = "И-мэйлээ баталгаажуулж байна…";
@@ -522,17 +558,83 @@ checkExistingSession();
 tabLogin.addEventListener("click", () => {
   tabLogin.classList.add("active");
   tabSignup.classList.remove("active");
+  hideAllAuthPanels();
+  authTabs.hidden = false;
   loginForm.hidden = false;
-  signupForm.hidden = true;
-  signupPending.hidden = true;
 });
 
 tabSignup.addEventListener("click", () => {
   tabSignup.classList.add("active");
   tabLogin.classList.remove("active");
+  hideAllAuthPanels();
+  authTabs.hidden = false;
   signupForm.hidden = false;
-  loginForm.hidden = true;
-  signupPending.hidden = true;
+});
+
+forgotPasswordLink.addEventListener("click", () => {
+  hideAllAuthPanels();
+  forgotPasswordForm.hidden = false;
+});
+
+backToLoginLink.addEventListener("click", () => {
+  hideAllAuthPanels();
+  authTabs.hidden = false;
+  loginForm.hidden = false;
+});
+
+forgotPasswordForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  forgotError.hidden = true;
+  forgotSubmitBtn.disabled = true;
+
+  try {
+    const res = await fetch("/.netlify/functions/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: forgotEmailInput.value.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Алдаа гарлаа.");
+    }
+    forgotPasswordForm.hidden = true;
+    forgotPending.hidden = false;
+  } catch (err) {
+    forgotError.textContent = err.message;
+    forgotError.hidden = false;
+  } finally {
+    forgotSubmitBtn.disabled = false;
+  }
+});
+
+resetPasswordForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  resetError.hidden = true;
+  resetSubmitBtn.disabled = true;
+
+  try {
+    const res = await fetch("/.netlify/functions/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: resetPasswordForm.dataset.token,
+        newPassword: resetNewPasswordInput.value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Алдаа гарлаа.");
+    }
+    authToken = data.token;
+    localStorage.setItem("ztAuthToken", authToken);
+    localStorage.setItem("ztAuthEmail", data.email);
+    showApp(data.email);
+  } catch (err) {
+    resetError.textContent = err.message;
+    resetError.hidden = false;
+  } finally {
+    resetSubmitBtn.disabled = false;
+  }
 });
 
 loginForm.addEventListener("submit", async (e) => {
