@@ -98,6 +98,7 @@
   }
   .btn-mark-paid { background: var(--sage); color: white; }
   .btn-back { background: var(--cream-2); color: var(--plum); }
+  .btn-delete-order { background: #e8574a; color: white; }
 
   .order-meta-grid {
     display: grid;
@@ -311,6 +312,7 @@ function renderOrderDetail(order) {
       </div>
       <div class="order-detail-actions">
         <button class="btn-small btn-mark-paid" id="markPaidBtn" ${order.status === "paid" || order.status === "completed" ? "disabled" : ""}>✓ Төлсөн гэж тэмдэглэх</button>
+        <button class="btn-small btn-delete-order" id="deleteOrderBtn">🗑 Устгах</button>
         <button class="btn-small btn-back" id="closeDetailBtn">Хаах</button>
       </div>
     </div>
@@ -361,6 +363,34 @@ function renderOrderDetail(order) {
   document.getElementById("closeDetailBtn").addEventListener("click", () => {
     orderDetail.hidden = true;
     orderDetail.innerHTML = "";
+  });
+
+  document.getElementById("deleteOrderBtn").addEventListener("click", async () => {
+    const confirmed = confirm(`"${order.childName}"-ийн захиалгыг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`);
+    if (!confirmed) return;
+
+    const deleteBtn = document.getElementById("deleteOrderBtn");
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = "Устгаж байна…";
+
+    try {
+      const res = await adminFetch("/.netlify/functions/delete-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: order.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Устгахад алдаа гарлаа.");
+      }
+      orderDetail.hidden = true;
+      orderDetail.innerHTML = "";
+      refreshList();
+    } catch (err) {
+      alert(`Алдаа: ${err.message}`);
+      deleteBtn.disabled = false;
+      deleteBtn.textContent = "🗑 Устгах";
+    }
   });
 
   const markPaidBtn = document.getElementById("markPaidBtn");
