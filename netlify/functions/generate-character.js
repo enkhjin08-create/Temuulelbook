@@ -15,14 +15,14 @@
 
 const { buildPagePrompt } = require("./stories");
 const { getStore } = require("@netlify/blobs");
-const { checkRateLimit } = require("./_rate-limit");
+const { checkRateLimit, incrementRateLimit } = require("./_rate-limit");
 const { checkSession } = require("./_auth");
 const { isAdminPinValid } = require("./_admin-auth");
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
 
-const DAILY_LIMIT = 8; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо (admin PIN-тэй бол хамаарахгүй)
+const DAILY_LIMIT = 20; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо (admin PIN-тэй бол хамаарахгүй)
 
 function getGalleryStore() {
   const siteID = process.env.BLOBS_SITE_ID;
@@ -147,6 +147,8 @@ exports.handler = async (event) => {
     } catch (galleryErr) {
       console.error("Gallery save failed:", galleryErr);
     }
+
+    await incrementRateLimit(event, "generate-character");
 
     return respond(200, {
       imageBase64: `data:${outMime};base64,${outData}`,

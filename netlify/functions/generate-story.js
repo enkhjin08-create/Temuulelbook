@@ -13,9 +13,9 @@ const GEMINI_TEXT_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
 const PAGE_COUNT = 10;
-const DAILY_LIMIT = 8; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо
+const DAILY_LIMIT = 20; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо
 
-const { checkRateLimit } = require("./_rate-limit");
+const { checkRateLimit, incrementRateLimit } = require("./_rate-limit");
 const { checkSession } = require("./_auth");
 const { isAdminPinValid } = require("./_admin-auth");
 
@@ -155,6 +155,8 @@ this shape:
       caption: String(p.caption || "").slice(0, 200),
       sceneDescription: String(p.sceneDescription || "").slice(0, 1000),
     }));
+
+    await incrementRateLimit(event, "generate-story");
 
     return respond(200, {
       title: String(story.title || `${childName}-ийн үлгэр`).slice(0, 200),
