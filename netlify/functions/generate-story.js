@@ -112,10 +112,7 @@ this shape:
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
-          maxOutputTokens: 8192,
-          thinkingConfig: {
-            thinkingBudget: 0,
-          },
+          maxOutputTokens: 16384,
         },
       }),
     });
