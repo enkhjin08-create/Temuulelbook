@@ -236,16 +236,39 @@ function sleep(ms) {
 async function fetchJsonWithRetry(url, options, { maxRetries = 5, retryDelayMs = 3000, onRetry } = {}) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     let res, data;
+    let fetchFailed = false;
+    let parseFailed = false;
+
     try {
       res = await fetch(url, options);
-      data = await res.json();
     } catch (err) {
+      fetchFailed = true;
+    }
+
+    if (fetchFailed) {
       if (attempt < maxRetries) {
         if (onRetry) onRetry(attempt, maxRetries);
         await sleep(retryDelayMs * attempt);
         continue;
       }
-      throw new Error(`Сүлжээний алдаа: ${err.message}`);
+      throw new Error("Сүлжээний алдаа: сервертэй холбогдож чадсангүй.");
+    }
+
+    try {
+      data = await res.json();
+    } catch (err) {
+      parseFailed = true;
+    }
+
+    if (parseFailed) {
+      // Ихэвчлэн сервер 26 секундэд хугацаа хэтэрч, JSON биш HTML алдааны
+      // хуудас буцаасан үед тохиолддог (Gemini удаан хариулсан гэсэн үг)
+      if (attempt < maxRetries) {
+        if (onRetry) onRetry(attempt, maxRetries);
+        await sleep(retryDelayMs * attempt);
+        continue;
+      }
+      throw new Error(`Сервер хугацаанд багтаж хариулсангүй (${res.status}). Gemini удаан ажилласан бололтой, дахин оролдоно уу.`);
     }
 
     if (res.ok) return data;
