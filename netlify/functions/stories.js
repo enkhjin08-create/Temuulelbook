@@ -68,4 +68,35 @@ book — same characters, same style, a new moment in the story.
 `.trim();
 }
 
-module.exports = { STYLE_GUIDE, buildPagePrompt };
+module.exports = { STYLE_GUIDE, buildPagePrompt, buildPatternPrompt };
+
+// Номоо нээнгүүт харагдах чимэглэлийн хээ (endpaper) — дүр, текст ороогүй,
+// зөвхөн түүхийн сэдэвтэй холбоотой жижиг дүрс/зүйлсээр давтагдсан хээ.
+function buildPatternPrompt({ storyTitle, interests, gender, patternDescription }) {
+  const genderEn = gender === "хүү" ? "boy" : "girl";
+
+  return `
+You are designing the decorative endpaper (inside-cover pattern page) of a
+personalized children's picture book for a ${genderEn}. This page appears the
+moment the book is opened, BEFORE the story begins — it is NOT a story scene and
+must NOT contain any characters, people, faces, or text/lettering of any kind.
+
+Book context: "${storyTitle}", themed around: ${interests}.
+
+Pattern description: ${patternDescription}
+
+Design requirements:
+- A charming, seamless-feeling all-over repeating pattern of small, simple,
+  flat-illustrated motifs/icons related to the book's theme (e.g. small objects,
+  stars, plants, playful shapes — whatever fits the theme described above)
+- Soft pastel or warm color palette consistent with a cozy children's book
+- Evenly scattered, balanced composition covering the whole page edge-to-edge
+- NO characters, NO faces, NO people, NO animals with faces, NO text or letters
+  anywhere in the image
+- Flat, gentle, hand-illustrated style (not photorealistic), matching a warm
+  Ghibli-inspired children's book aesthetic but purely decorative/ornamental
+
+The final image should look like the inside front cover of a printed children's
+book — a delightful pattern that sets the mood before the story starts.
+`.trim();
+}
