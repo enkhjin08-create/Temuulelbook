@@ -111,6 +111,120 @@
   .order-meta-grid b { color: var(--plum); }
 
   #adminLoading, #adminError { text-align: center; padding: 40px; color: var(--plum-soft); }
+
+  .generate-all-area {
+    margin-top: 20px;
+    padding: 16px;
+    background: var(--cream);
+    border-radius: var(--radius-md);
+    text-align: center;
+  }
+  .btn-generate-all {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 15px;
+    color: white;
+    background: linear-gradient(135deg, var(--sage), #6f9169);
+    border: none;
+    border-radius: 999px;
+    padding: 13px 22px;
+    cursor: pointer;
+  }
+  .btn-generate-all:disabled { opacity: 0.6; cursor: not-allowed; }
+  .generate-all-progress {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: var(--plum-soft);
+  }
+
+  .page-edit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .page-edit-card {
+    display: flex;
+    gap: 14px;
+    background: var(--white);
+    border: 1px solid rgba(46,34,71,0.08);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    align-items: flex-start;
+  }
+  .page-edit-number {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--coral);
+    color: white;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .page-edit-image {
+    flex: 0 0 auto;
+    width: 100px;
+    height: 100px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .page-edit-image img { width: 100%; height: 100%; object-fit: cover; }
+  .page-edit-placeholder {
+    font-size: 11px;
+    color: var(--plum-soft);
+    text-align: center;
+    padding: 8px;
+  }
+  .page-edit-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  .page-edit-textarea {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--cream-2);
+    background: var(--cream);
+    color: var(--plum);
+    resize: vertical;
+    min-height: 50px;
+  }
+  .page-edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .btn-page-generate {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12.5px;
+    color: white;
+    background: var(--gold);
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+  .btn-page-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+  .page-edit-status {
+    font-size: 12px;
+    color: var(--plum-soft);
+  }
 </style>
 </head>
 <body>
@@ -325,8 +439,6 @@ async function openOrder(id) {
 }
 
 function renderOrderDetail(order) {
-  const isLast = order.generatedPages.length >= order.storyPages.length;
-
   orderDetail.innerHTML = `
     <div class="order-detail-header">
       <div>
@@ -350,38 +462,15 @@ function renderOrderDetail(order) {
       <div><b>Үнэ:</b> ${Number(order.price || 0).toLocaleString()}₮</div>
     </div>
 
-    <div class="pages-gallery" id="orderPagesGallery"></div>
-
-    <div class="next-page-area" id="orderNextPageArea" ${isLast ? "hidden" : ""}>
-      <button type="button" class="btn-next-page" id="orderNextPageBtn">Дараагийн хуудас зурах</button>
-      <p class="next-page-hint" id="orderNextPageHint"></p>
+    <div class="generate-all-area">
+      <button type="button" class="btn-generate-all" id="generateAllBtn">✨ Бүх үлдсэн хуудсыг автоматаар зурах</button>
+      <p class="generate-all-progress" id="generateAllProgress"></p>
     </div>
 
-    <div class="story-done" id="orderStoryDone" ${isLast ? "" : "hidden"}>
-      <p>✨ Бүх ${order.storyPages.length} хуудас бэлэн боллоо</p>
-    </div>
-
-    <div class="result-error" id="orderPageError" hidden style="margin-top:16px;">
-      <p class="error-title">Алдаа гарлаа</p>
-      <p class="error-detail" id="orderPageErrorDetail"></p>
-    </div>
+    <div class="page-edit-list" id="orderPagesList"></div>
   `;
 
-  const gallery = document.getElementById("orderPagesGallery");
-  order.generatedPages
-    .slice()
-    .sort((a, b) => a.pageIndex - b.pageIndex)
-    .forEach((p) => {
-      const figure = document.createElement("figure");
-      figure.className = "polaroid generated";
-      const img = document.createElement("img");
-      loadOrderImageInto(img, p.imageKey);
-      const caption = document.createElement("figcaption");
-      caption.textContent = `${p.pageIndex + 1}-р хуудас: ${p.caption || ""}`;
-      figure.appendChild(img);
-      figure.appendChild(caption);
-      gallery.appendChild(figure);
-    });
+  renderPagesList(order);
 
   document.getElementById("closeDetailBtn").addEventListener("click", () => {
     orderDetail.hidden = true;
@@ -428,64 +517,174 @@ function renderOrderDetail(order) {
     refreshList();
   });
 
-  if (!isLast) {
-    const nextBtn = document.getElementById("orderNextPageBtn");
-    const nextHint = document.getElementById("orderNextPageHint");
-    const nextIndex = order.generatedPages.length;
-    const nextPage = order.storyPages[nextIndex];
-    nextHint.textContent = nextPage ? `Дараагийн: ${nextPage.caption}` : "";
+  document.getElementById("generateAllBtn").addEventListener("click", () => generateAllRemaining(order));
+}
 
-    nextBtn.addEventListener("click", async () => {
-      nextBtn.disabled = true;
-      nextBtn.textContent = "Зурж байна…";
-      document.getElementById("orderPageError").hidden = true;
+// ---------- хуудас бүрийн засварлах карт ----------
 
-      try {
-        const lastPage = order.generatedPages[order.generatedPages.length - 1];
-        const referenceImageBase64 = await fetchOrderImageDataUrl(lastPage.imageKey);
+function renderPagesList(order) {
+  const list = document.getElementById("orderPagesList");
+  list.innerHTML = "";
 
-        const genData = await fetchJsonWithRetry(
-          "/.netlify/functions/generate-character",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-admin-pin": adminPin },
-            body: JSON.stringify({
-              childName: order.childName,
-              gender: order.gender,
-              photoBase64: referenceImageBase64,
-              pageIndex: nextIndex,
-              totalPages: order.storyPages.length,
-              sceneDescription: nextPage.sceneDescription,
-            }),
-          },
-          {
-            onRetry: (attempt, max) => {
-              nextBtn.textContent = `Дахин оролдож байна… (${attempt}/${max})`;
-            },
-          }
-        );
+  order.storyPages.forEach((storyPage, i) => {
+    const generated = order.generatedPages.find((p) => p.pageIndex === i);
 
-        await adminFetch("/.netlify/functions/append-order-page", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: order.id,
-            pageIndex: nextIndex,
-            imageBase64: genData.imageBase64,
-            caption: nextPage.caption,
-          }),
-        });
+    const card = document.createElement("div");
+    card.className = "page-edit-card";
+    card.dataset.pageIndex = String(i);
 
-        openOrder(order.id);
-        refreshList();
-      } catch (err) {
-        document.getElementById("orderPageError").hidden = false;
-        document.getElementById("orderPageErrorDetail").textContent = err.message;
-        nextBtn.disabled = false;
-        nextBtn.textContent = "Дараагийн хуудас зурах";
-      }
-    });
+    card.innerHTML = `
+      <div class="page-edit-number">${i + 1}</div>
+      <div class="page-edit-image" id="pageImgWrap-${i}">
+        ${generated ? "" : '<div class="page-edit-placeholder">Хараахан зураагүй</div>'}
+      </div>
+      <div class="page-edit-body">
+        <textarea class="page-edit-textarea" id="pageText-${i}">${escapeHtml(generated ? generated.caption : storyPage.caption)}</textarea>
+        <div class="page-edit-actions">
+          <button class="btn-page-generate" id="pageBtn-${i}">${generated ? "🔄 Дахин зурах" : "Зурах"}</button>
+          <span class="page-edit-status" id="pageStatus-${i}"></span>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+
+    if (generated) {
+      const imgWrap = document.getElementById(`pageImgWrap-${i}`);
+      const img = document.createElement("img");
+      loadOrderImageInto(img, generated.imageKey);
+      imgWrap.appendChild(img);
+    }
+
+    // Reference зураггүй бол (өмнөх хуудас хараахан зураагдаагүй) товчийг идэвхгүй болгоно
+    const canGenerate = i === 0 ? !!order.originalPhotoKey : order.generatedPages.some((p) => p.pageIndex === i - 1);
+    const btn = document.getElementById(`pageBtn-${i}`);
+    if (!canGenerate) {
+      btn.disabled = true;
+      document.getElementById(`pageStatus-${i}`).textContent = "Эхлээд өмнөх хуудсыг зурна уу";
+    } else {
+      btn.addEventListener("click", () => generatePageAt(order, i));
+    }
+  });
+}
+
+// pageIndex-ийн хуудсыг (шинээр эсвэл дахин) generate хийнэ
+async function generatePageAt(order, pageIndex) {
+  const textarea = document.getElementById(`pageText-${pageIndex}`);
+  const btn = document.getElementById(`pageBtn-${pageIndex}`);
+  const status = document.getElementById(`pageStatus-${pageIndex}`);
+  const imgWrap = document.getElementById(`pageImgWrap-${pageIndex}`);
+
+  const text = textarea.value.trim();
+  if (!text) {
+    alert("Текст хоосон байна.");
+    return false;
   }
+
+  let referenceImageBase64;
+  try {
+    if (pageIndex === 0) {
+      if (!order.originalPhotoKey) throw new Error("Эх зураг олдсонгүй.");
+      referenceImageBase64 = await fetchOrderImageDataUrl(order.originalPhotoKey);
+    } else {
+      const prevPage = order.generatedPages.find((p) => p.pageIndex === pageIndex - 1);
+      if (!prevPage) throw new Error(`Эхлээд ${pageIndex}-р хуудсыг зурна уу.`);
+      referenceImageBase64 = await fetchOrderImageDataUrl(prevPage.imageKey);
+    }
+  } catch (err) {
+    status.textContent = `Алдаа: ${err.message}`;
+    return false;
+  }
+
+  const originalBtnText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Зурж байна…";
+  status.textContent = "";
+
+  try {
+    const genData = await fetchJsonWithRetry(
+      "/.netlify/functions/generate-character",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-pin": adminPin },
+        body: JSON.stringify({
+          childName: order.childName,
+          gender: order.gender,
+          photoBase64: referenceImageBase64,
+          pageIndex,
+          totalPages: order.storyPages.length,
+          sceneDescription: text,
+        }),
+      },
+      {
+        onRetry: (attempt, max) => {
+          btn.textContent = `Дахин оролдож байна… (${attempt}/${max})`;
+        },
+      }
+    );
+
+    await adminFetch("/.netlify/functions/append-order-page", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: order.id, pageIndex, imageBase64: genData.imageBase64, caption: text }),
+    });
+
+    // Дараагийн давталтад ашиглагдахын тулд order объектыг локалиар шинэчилнэ
+    const existingIdx = order.generatedPages.findIndex((p) => p.pageIndex === pageIndex);
+    const entry = { pageIndex, imageKey: `${order.id}:page${pageIndex}`, caption: text };
+    if (existingIdx >= 0) order.generatedPages[existingIdx] = entry;
+    else order.generatedPages.push(entry);
+
+    imgWrap.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = genData.imageBase64;
+    imgWrap.appendChild(img);
+
+    status.textContent = "✓ Зурагдлаа";
+    btn.textContent = "🔄 Дахин зурах";
+    btn.disabled = false;
+
+    const nextBtn = document.getElementById(`pageBtn-${pageIndex + 1}`);
+    const nextStatus = document.getElementById(`pageStatus-${pageIndex + 1}`);
+    if (nextBtn) {
+      nextBtn.disabled = false;
+      nextBtn.addEventListener("click", () => generatePageAt(order, pageIndex + 1));
+      if (nextStatus) nextStatus.textContent = "";
+    }
+
+    if (order.generatedPages.length >= order.storyPages.length) {
+      refreshList();
+    }
+
+    return true;
+  } catch (err) {
+    status.textContent = `Алдаа: ${err.message}`;
+    btn.textContent = originalBtnText;
+    btn.disabled = false;
+    return false;
+  }
+}
+
+async function generateAllRemaining(order) {
+  const allBtn = document.getElementById("generateAllBtn");
+  const progress = document.getElementById("generateAllProgress");
+  allBtn.disabled = true;
+
+  for (let i = 0; i < order.storyPages.length; i++) {
+    const already = order.generatedPages.some((p) => p.pageIndex === i);
+    if (already) continue;
+
+    progress.textContent = `${i + 1}/${order.storyPages.length} хуудас зурж байна…`;
+    const ok = await generatePageAt(order, i);
+    if (!ok) {
+      progress.textContent = `${i + 1}-р хуудас дээр алдаа гарлаа. Тухайн хуудсыг доор гараар дахин зураад, дараа нь "Бүгдийг зурах"-ыг дахин дарна уу.`;
+      allBtn.disabled = false;
+      return;
+    }
+  }
+
+  progress.textContent = "✨ Бүх хуудас бэлэн боллоо";
+  allBtn.disabled = false;
+  refreshList();
 }
 
 async function refreshList() {
