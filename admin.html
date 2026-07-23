@@ -112,6 +112,25 @@
 
   #adminLoading, #adminError { text-align: center; padding: 40px; color: var(--plum-soft); }
 
+  .pattern-card {
+    margin-top: 20px;
+    padding: 16px;
+    background: var(--cream);
+    border-radius: var(--radius-md);
+  }
+  .pattern-card-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--plum);
+    margin: 0 0 12px;
+  }
+  .pattern-card-body {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .pattern-image { background: white; }
+
   .generate-all-area {
     margin-top: 20px;
     padding: 16px;
@@ -462,6 +481,22 @@ function renderOrderDetail(order) {
       <div><b>Үнэ:</b> ${Number(order.price || 0).toLocaleString()}₮</div>
     </div>
 
+    <div class="pattern-card">
+      <h3 class="pattern-card-title">📐 Хавтасны хээ (номоо нээнгүүт харагдах)</h3>
+      <div class="pattern-card-body">
+        <div class="page-edit-image pattern-image" id="patternImgWrap">
+          ${order.patternImageKey ? "" : '<div class="page-edit-placeholder">Хараахан зураагүй</div>'}
+        </div>
+        <div class="page-edit-body">
+          <textarea class="page-edit-textarea" id="patternText" rows="3">${escapeHtml(order.patternDescription || `Номын сэдэвтэй холбоотой жижиг дүрс/зүйлсээр давтагдсан энгийн, дүр ороогүй чимэглэлийн хээ`)}</textarea>
+          <div class="page-edit-actions">
+            <button class="btn-page-generate" id="patternBtn">${order.patternImageKey ? "🔄 Дахин зурах" : "Зурах"}</button>
+            <span class="page-edit-status" id="patternStatus"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="generate-all-area">
       <button type="button" class="btn-generate-all" id="generateAllBtn">✨ Бүх үлдсэн хуудсыг автоматаар зурах</button>
       <p class="generate-all-progress" id="generateAllProgress"></p>
@@ -469,6 +504,15 @@ function renderOrderDetail(order) {
 
     <div class="page-edit-list" id="orderPagesList"></div>
   `;
+
+  if (order.patternImageKey) {
+    const patternImgWrap = document.getElementById("patternImgWrap");
+    const img = document.createElement("img");
+    loadOrderImageInto(img, order.patternImageKey);
+    patternImgWrap.appendChild(img);
+  }
+
+  document.getElementById("patternBtn").addEventListener("click", () => generatePattern(order));
 
   renderPagesList(order);
 
@@ -518,6 +562,69 @@ function renderOrderDetail(order) {
   });
 
   document.getElementById("generateAllBtn").addEventListener("click", () => generateAllRemaining(order));
+}
+
+// ---------- хавтасны хээ ----------
+
+async function generatePattern(order) {
+  const textarea = document.getElementById("patternText");
+  const btn = document.getElementById("patternBtn");
+  const status = document.getElementById("patternStatus");
+  const imgWrap = document.getElementById("patternImgWrap");
+
+  const description = textarea.value.trim();
+  if (!description) {
+    alert("Хээний тайлбар хоосон байна.");
+    return;
+  }
+
+  const originalBtnText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Зурж байна…";
+  status.textContent = "";
+
+  try {
+    const genData = await fetchJsonWithRetry(
+      "/.netlify/functions/generate-pattern",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-pin": adminPin },
+        body: JSON.stringify({
+          storyTitle: order.storyTitle,
+          interests: order.interests,
+          gender: order.gender,
+          patternDescription: description,
+        }),
+      },
+      {
+        onRetry: (attempt, max) => {
+          btn.textContent = `Дахин оролдож байна… (${attempt}/${max})`;
+        },
+      }
+    );
+
+    await adminFetch("/.netlify/functions/set-order-pattern", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: order.id, imageBase64: genData.imageBase64, patternDescription: description }),
+    });
+
+    order.patternImageKey = `${order.id}:pattern`;
+    order.patternDescription = description;
+
+    imgWrap.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = genData.imageBase64;
+    imgWrap.appendChild(img);
+
+    status.textContent = "✓ Зурагдлаа";
+    btn.textContent = "🔄 Дахин зурах";
+    btn.disabled = false;
+  } catch (err) {
+    status.textContent = `Алдаа: ${err.message}`;
+    btn.textContent = originalBtnText;
+    btn.disabled = false;
+  }
 }
 
 // ---------- хуудас бүрийн засварлах карт ----------
