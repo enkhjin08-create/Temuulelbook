@@ -72,6 +72,7 @@ module.exports = { STYLE_GUIDE, buildPagePrompt, buildPatternPrompt };
 
 // Номоо нээнгүүт харагдах чимэглэлийн хээ (endpaper) — дүр, текст ороогүй,
 // зөвхөн түүхийн сэдэвтэй холбоотой жижиг дүрс/зүйлсээр давтагдсан хээ.
+// Дэвсгэргүй (transparent), сүүдэргүй, A4 хэвтээ (landscape) хэмжээтэй.
 function buildPatternPrompt({ storyTitle, interests, gender, patternDescription }) {
   const genderEn = gender === "хүү" ? "boy" : "girl";
 
@@ -85,18 +86,29 @@ Book context: "${storyTitle}", themed around: ${interests}.
 
 Pattern description: ${patternDescription}
 
+CRITICAL technical requirements:
+- TRANSPARENT BACKGROUND — no background color, no background scenery, no
+  ground/sky/paper texture behind the motifs. Export as if on a transparent
+  PNG canvas. Only the illustrated motifs themselves should be visible.
+- NO drop shadows, NO cast shadows, NO glow/blur effects under or around any
+  motif — every element must be flat and shadow-free, as if cleanly cut out.
+- Landscape (horizontal) A4 page proportions (wider than tall, roughly a 4:3
+  landscape framing).
+
 Design requirements:
-- A charming, seamless-feeling all-over repeating pattern of small, simple,
-  flat-illustrated motifs/icons related to the book's theme (e.g. small objects,
-  stars, plants, playful shapes — whatever fits the theme described above)
-- Soft pastel or warm color palette consistent with a cozy children's book
-- Evenly scattered, balanced composition covering the whole page edge-to-edge
+- A charming, evenly-scattered arrangement of small, simple, flat-illustrated
+  motifs/icons related to the book's theme (e.g. small objects, stars, plants,
+  playful shapes — whatever fits the theme described above), spread across the
+  full landscape canvas with generous transparent space between them
+- Soft pastel color palette for the motifs themselves, consistent with a cozy
+  children's book
 - NO characters, NO faces, NO people, NO animals with faces, NO text or letters
   anywhere in the image
 - Flat, gentle, hand-illustrated style (not photorealistic), matching a warm
   Ghibli-inspired children's book aesthetic but purely decorative/ornamental
 
-The final image should look like the inside front cover of a printed children's
-book — a delightful pattern that sets the mood before the story starts.
+The final image should look like a set of isolated decorative stickers/motifs on
+a transparent canvas, ready to be placed over any background color for the
+book's inside cover — delightful, flat, and completely shadow-free.
 `.trim();
 }
