@@ -20,7 +20,7 @@ const { checkSession } = require("./_auth");
 const { isAdminPinValid } = require("./_admin-auth");
 
 const GEMINI_ENDPOINT =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent";
 
 const DAILY_LIMIT = 20; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо (admin PIN-тэй бол хамаарахгүй)
 
