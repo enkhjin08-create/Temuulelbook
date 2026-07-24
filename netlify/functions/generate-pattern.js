@@ -11,7 +11,6 @@
 
 const { buildPatternPrompt } = require("./stories");
 const { checkAdminPin } = require("./_admin-auth");
-const { removeWhiteBackground } = require("./_image-transparency");
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent";
@@ -59,6 +58,7 @@ exports.handler = async (event) => {
           responseModalities: ["TEXT", "IMAGE"],
           imageConfig: {
             aspectRatio: "4:3",
+            imageSize: "2K",
           },
         },
       }),
@@ -85,13 +85,7 @@ exports.handler = async (event) => {
     }
 
     const outMime = imagePart.inlineData.mimeType || "image/png";
-    let outData = imagePart.inlineData.data;
-
-    // Gemini "transparent background" гэсэн хүсэлтийг ихэвчлэн цагаан
-    // дэвсгэрээр орлуулдаг тул, PNG бол цагааныг тунгалаг болгоно
-    if (outMime === "image/png") {
-      outData = removeWhiteBackground(outData);
-    }
+    const outData = imagePart.inlineData.data;
 
     return respond(200, { imageBase64: `data:${outMime};base64,${outData}` });
   } catch (err) {

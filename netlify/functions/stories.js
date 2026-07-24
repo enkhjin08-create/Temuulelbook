@@ -87,13 +87,13 @@ Book context: "${storyTitle}", themed around: ${interests}.
 Pattern description: ${patternDescription}
 
 CRITICAL technical requirements:
-- TRANSPARENT BACKGROUND — no background color, no background scenery, no
-  ground/sky/paper texture behind the motifs. Export as if on a transparent
-  PNG canvas. Only the illustrated motifs themselves should be visible.
+- SOLID PLAIN WHITE BACKGROUND — a clean, flat, pure white (#FFFFFF) background
+  behind all motifs. No gradients, no textures, no scenery in the background.
 - NO drop shadows, NO cast shadows, NO glow/blur effects under or around any
-  motif — every element must be flat and shadow-free, as if cleanly cut out.
+  motif — every element must be flat and shadow-free.
 - Landscape (horizontal) A4 page proportions (wider than tall, roughly a 4:3
   landscape framing).
+- High resolution, crisp, clean linework — print-quality illustration.
 
 Design requirements:
 - A charming, evenly-scattered arrangement of small, simple, flat-illustrated
@@ -107,8 +107,8 @@ Design requirements:
 - Flat, gentle, hand-illustrated style (not photorealistic), matching a warm
   Ghibli-inspired children's book aesthetic but purely decorative/ornamental
 
-The final image should look like a set of isolated decorative stickers/motifs on
-a transparent canvas, ready to be placed over any background color for the
-book's inside cover — delightful, flat, and completely shadow-free.
+The final image should look like the inside front cover of a printed children's
+book — a delightful pattern on a clean white page that sets the mood before the
+story starts.
 `.trim();
 }
