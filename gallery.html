@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Зөвхөн Түүнд Kids Book — Generate хийсэн зургууд</title>
+<title>Зөвхөн Түүнд Kids Book — Admin Gallery</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&display=swap" rel="stylesheet">
@@ -14,18 +14,27 @@
   }
   .gallery-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 18px;
     margin-top: 30px;
   }
   .gallery-card {
     background: var(--white);
     border-radius: var(--radius-md);
-    padding: 10px 10px 14px;
+    padding: 12px;
     box-shadow: var(--shadow-soft);
-    text-align: center;
   }
-  .gallery-card img {
+  .gallery-pair {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .gallery-pair-item {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+  }
+  .gallery-pair-item img {
     width: 100%;
     aspect-ratio: 1 / 1;
     object-fit: cover;
@@ -33,32 +42,72 @@
     display: block;
     background: var(--cream-2);
   }
+  .gallery-pair-item span {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--plum-soft);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .gallery-pair-arrow {
+    flex: 0 0 auto;
+    font-size: 16px;
+    color: var(--gold);
+  }
   .gallery-card figcaption {
-    margin-top: 8px;
+    margin-top: 10px;
     font-family: var(--font-display);
     font-weight: 600;
     font-size: 13px;
     color: var(--plum);
+    text-align: center;
   }
   .gallery-card .gallery-meta {
     font-size: 11px;
     color: rgba(74,58,107,0.6);
     margin-top: 2px;
+    text-align: center;
   }
   .gallery-empty, .gallery-loading, .gallery-error {
     text-align: center;
     padding: 60px 20px;
     color: var(--plum-soft);
   }
-  .back-link {
-    display: inline-block;
-    margin-top: 8px;
-    font-family: var(--font-body);
-    font-weight: 700;
-    font-size: 13px;
-    color: var(--coral);
-    text-decoration: none;
+
+  .pin-gate {
+    max-width: 340px;
+    margin: 80px auto;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    box-shadow: var(--shadow-soft);
+    text-align: center;
   }
+  .pin-gate h2 { font-family: var(--font-display); margin: 0 0 16px; color: var(--plum); }
+  .pin-gate input {
+    width: 100%;
+    font-size: 20px;
+    text-align: center;
+    letter-spacing: 6px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--cream-2);
+    margin-bottom: 14px;
+  }
+  .pin-gate button {
+    width: 100%;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--white);
+    background: var(--coral);
+    border: none;
+    border-radius: 999px;
+    padding: 12px;
+    cursor: pointer;
+  }
+  .pin-error { color: var(--coral); font-size: 13px; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -72,16 +121,22 @@
 </div>
 
 <header class="topbar">
-  <div class="logo">Зөвхөн <span>Түүнд</span> <small>kids book</small></div>
-  <div class="topbar-badge">Gallery</div>
+  <div class="logo">Зөвхөн <span>Түүнд</span> <small>kids book · admin</small></div>
+  <a href="/admin.html" class="topbar-badge" style="text-decoration:none;">← Захиалгууд</a>
 </header>
 
-<main class="gallery-main">
+<div class="pin-gate" id="pinGate">
+  <h2>Admin PIN</h2>
+  <input type="password" id="pinInput" inputmode="numeric" maxlength="8" placeholder="••••" />
+  <button type="button" id="pinSubmit">Нэвтрэх</button>
+  <p class="pin-error" id="pinError" hidden></p>
+</div>
+
+<main class="gallery-main" id="galleryMain" hidden>
   <section class="hero">
     <p class="eyebrow">Дотоод хэрэгсэл</p>
-    <h1>Generate хийсэн <em>бүх зургууд</em></h1>
-    <p class="hero-sub">Туршилтын явцад үүссэн бүх зураг эндээс харагдана.</p>
-    <a class="back-link" href="/">← Үлгэрийн дүр болгох хуудас руу буцах</a>
+    <h1>Эх зураг ↔ <em>Generate хийсэн зураг</em></h1>
+    <p class="hero-sub">Захиалагчийн оруулсан (эсвэл өмнөх) зураг ба тэдгээрээс үүссэн зургийг хос болгож харуулна.</p>
   </section>
 
   <div id="galleryLoading" class="gallery-loading">Ачааллаж байна…</div>
@@ -95,60 +150,133 @@
 </footer>
 
 <script>
+const pinGate = document.getElementById("pinGate");
+const pinInput = document.getElementById("pinInput");
+const pinSubmit = document.getElementById("pinSubmit");
+const pinError = document.getElementById("pinError");
+const galleryMain = document.getElementById("galleryMain");
+
 const grid = document.getElementById("galleryGrid");
 const loadingEl = document.getElementById("galleryLoading");
 const emptyEl = document.getElementById("galleryEmpty");
 const errorEl = document.getElementById("galleryError");
 
+let adminPin = sessionStorage.getItem("adminPin") || "";
+
 const PAGE_LABELS = { 0: "1-р хуудас", 1: "2-р хуудас", 2: "3-р хуудас" };
 
-async function loadGallery() {
+if (adminPin) {
+  tryEnter(adminPin);
+}
+
+pinSubmit.addEventListener("click", () => tryEnter(pinInput.value.trim()));
+pinInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") tryEnter(pinInput.value.trim());
+});
+
+async function tryEnter(pin) {
+  if (!pin) return;
+  pinError.hidden = true;
   try {
-    const res = await fetch("/.netlify/functions/gallery-list");
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || "Тодорхойгүй алдаа гарлаа.");
-    }
-
-    loadingEl.hidden = true;
-
-    if (!data.items || data.items.length === 0) {
-      emptyEl.hidden = false;
+    const res = await fetch("/.netlify/functions/gallery-list", { headers: { "x-admin-pin": pin } });
+    if (res.status === 401) {
+      pinError.textContent = "PIN буруу байна.";
+      pinError.hidden = false;
       return;
     }
-
-    data.items.forEach((item) => {
-      const card = document.createElement("figure");
-      card.className = "gallery-card";
-
-      const img = document.createElement("img");
-      img.loading = "lazy";
-      img.src = `/.netlify/functions/gallery-image?id=${encodeURIComponent(item.id)}`;
-      img.alt = item.childName || "generate хийсэн зураг";
-
-      const caption = document.createElement("figcaption");
-      caption.textContent = item.childName || "(нэргүй)";
-
-      const meta = document.createElement("div");
-      meta.className = "gallery-meta";
-      const pageLabel = PAGE_LABELS[item.pageIndex] || `Хуудас ${Number(item.pageIndex) + 1}`;
-      const dateLabel = item.createdAt ? new Date(item.createdAt).toLocaleString("mn-MN") : "";
-      meta.textContent = `${pageLabel} · ${dateLabel}`;
-
-      card.appendChild(img);
-      card.appendChild(caption);
-      card.appendChild(meta);
-      grid.appendChild(card);
-    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      pinError.textContent = data.error || "Алдаа гарлаа.";
+      pinError.hidden = false;
+      return;
+    }
+    adminPin = pin;
+    sessionStorage.setItem("adminPin", pin);
+    pinGate.hidden = true;
+    galleryMain.hidden = false;
+    const data = await res.json();
+    renderGallery(data.items);
   } catch (err) {
-    loadingEl.hidden = true;
-    errorEl.hidden = false;
-    errorEl.textContent = `Алдаа гарлаа: ${err.message}`;
+    pinError.textContent = `Алдаа: ${err.message}`;
+    pinError.hidden = false;
   }
 }
 
-loadGallery();
+async function fetchImageDataUrl(id) {
+  const res = await fetch(`/.netlify/functions/gallery-image?id=${encodeURIComponent(id)}`, {
+    headers: { "x-admin-pin": adminPin },
+  });
+  if (!res.ok) throw new Error(`Зураг татахад алдаа гарлаа (${res.status})`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function renderGallery(items) {
+  loadingEl.hidden = true;
+
+  if (!items || items.length === 0) {
+    emptyEl.hidden = false;
+    return;
+  }
+
+  items.forEach((item) => {
+    const card = document.createElement("figure");
+    card.className = "gallery-card";
+
+    const pair = document.createElement("div");
+    pair.className = "gallery-pair";
+
+    const origWrap = document.createElement("div");
+    origWrap.className = "gallery-pair-item";
+    const origImg = document.createElement("img");
+    origImg.loading = "lazy";
+    origWrap.appendChild(origImg);
+    const origLabel = document.createElement("span");
+    origLabel.textContent = "Эх зураг";
+    origWrap.appendChild(origLabel);
+
+    const arrow = document.createElement("div");
+    arrow.className = "gallery-pair-arrow";
+    arrow.textContent = "→";
+
+    const genWrap = document.createElement("div");
+    genWrap.className = "gallery-pair-item";
+    const genImg = document.createElement("img");
+    genImg.loading = "lazy";
+    genWrap.appendChild(genImg);
+    const genLabel = document.createElement("span");
+    genLabel.textContent = "Generate";
+    genWrap.appendChild(genLabel);
+
+    pair.appendChild(origWrap);
+    pair.appendChild(arrow);
+    pair.appendChild(genWrap);
+    card.appendChild(pair);
+
+    const caption = document.createElement("figcaption");
+    caption.textContent = item.childName || "(нэргүй)";
+    card.appendChild(caption);
+
+    const meta = document.createElement("div");
+    meta.className = "gallery-meta";
+    const pageLabel = PAGE_LABELS[item.pageIndex] || `Хуудас ${Number(item.pageIndex) + 1}`;
+    const dateLabel = item.createdAt ? new Date(item.createdAt).toLocaleString("mn-MN") : "";
+    meta.textContent = `${pageLabel} · ${dateLabel}`;
+    card.appendChild(meta);
+
+    grid.appendChild(card);
+
+    if (item.originalKey) {
+      fetchImageDataUrl(item.originalKey).then((url) => { origImg.src = url; }).catch(() => {});
+    }
+    fetchImageDataUrl(item.id).then((url) => { genImg.src = url; }).catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
