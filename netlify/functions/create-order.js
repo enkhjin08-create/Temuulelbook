@@ -32,6 +32,17 @@ function getOrdersStore() {
   return getStore("pixietale-orders");
 }
 
+// Захиалагч гүйлгээний утга дээр бичихэд хялбар, богино дугаар
+// (андуурагдахад амархан үсэг/тоог хассан)
+function generateOrderNumber() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return respond(405, { error: "Зөвхөн POST хүсэлт хүлээн авна." });
@@ -72,6 +83,7 @@ exports.handler = async (event) => {
 
   try {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const orderNumber = generateOrderNumber();
     const now = new Date().toISOString();
 
     // Зургуудыг захиалгын JSON дотор шууд хадгалахгүй, тусад нь Blobs-д
@@ -88,6 +100,7 @@ exports.handler = async (event) => {
 
     const order = {
       id,
+      orderNumber,
       customerEmail: session.email,
       childName,
       gender: gender || "",
@@ -112,6 +125,7 @@ exports.handler = async (event) => {
     await store.set(id, JSON.stringify(order), {
       metadata: {
         childName,
+        orderNumber,
         customerEmail: session.email,
         status: order.status,
         createdAt: now,
@@ -130,6 +144,7 @@ exports.handler = async (event) => {
       subject: `🎉 Шинэ захиалга: ${childName}`,
       html: `
         <h2>Шинэ захиалга ирлээ</h2>
+        <p><b>Захиалгын дугаар:</b> ${escapeHtml(orderNumber)}</p>
         <p><b>Хүүхэд:</b> ${escapeHtml(childName)} (${escapeHtml(gender || "")}, ${escapeHtml(String(age || ""))} нас)</p>
         <p><b>Сонирхол:</b> ${escapeHtml(interests || "")}</p>
         <p><b>Түүх:</b> ${escapeHtml(storyTitle || "")}</p>
@@ -148,8 +163,9 @@ exports.handler = async (event) => {
       html: `
         <h2>Баярлалаа, захиалга бүртгэгдлээ! 🎉</h2>
         <p><b>${escapeHtml(childName)}</b>-ийн хувийн үлгэрийг бид одоо бэлдэж эхэлнэ.</p>
+        <p><b>Захиалгын дугаар:</b> ${escapeHtml(orderNumber)}</p>
         <p><b>Үнэ:</b> ${PRICE.toLocaleString()}₮</p>
-        <p>Дараах дансанд шилжүүлгээ хийнэ үү:</p>
+        <p>Дараах дансанд шилжүүлгээ хийхдээ <b>гүйлгээний утга дээр захиалгын дугаараа (${escapeHtml(orderNumber)}) бичнэ үү</b>:</p>
         <ul>
           <li><b>Банк:</b> ${BANK.bankName}</li>
           <li><b>Данс:</b> ${BANK.accountNumber}</li>
@@ -164,7 +180,7 @@ exports.handler = async (event) => {
     await resetRateLimit(event, "generate-story");
     await resetRateLimit(event, "generate-character");
 
-    return respond(200, { id, bank: BANK });
+    return respond(200, { id, orderNumber, bank: BANK });
   } catch (err) {
     console.error("create-order error:", err);
     return respond(500, {
