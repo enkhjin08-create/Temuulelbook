@@ -195,7 +195,7 @@ async function tryEnter(pin) {
     pinGate.hidden = true;
     galleryMain.hidden = false;
     const data = await res.json();
-    renderGallery(data.items);
+    renderGallery(data.items, data.total);
   } catch (err) {
     pinError.textContent = `Алдаа: ${err.message}`;
     pinError.hidden = false;
@@ -216,12 +216,21 @@ async function fetchImageDataUrl(id) {
   });
 }
 
-function renderGallery(items) {
+function renderGallery(items, total) {
   loadingEl.hidden = true;
 
   if (!items || items.length === 0) {
     emptyEl.hidden = false;
     return;
+  }
+
+  if (total && total > items.length) {
+    const note = document.createElement("p");
+    note.style.textAlign = "center";
+    note.style.color = "var(--plum-soft)";
+    note.style.fontSize = "13px";
+    note.textContent = `Сүүлийн ${items.length} / нийт ${total} зураг харагдаж байна`;
+    grid.parentElement.insertBefore(note, grid);
   }
 
   items.forEach((item) => {
