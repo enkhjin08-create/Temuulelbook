@@ -172,6 +172,14 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Нэг логик "оролдлого" (form submit эсвэл товч дарах) бүрт ганц удаа
+// үүсгэгддэг ID. Дотоод автомат retry (fetchJsonWithRetry) бүрд ижил ID-г
+// ашигладаг тул, сервер өмнөх (хараахан дуусаагүй) хүсэлтийг таньж, давхар
+// Gemini дуудахаас сэргийлдэг.
+function generateRequestId() {
+  return crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 // Захиалагч захиалахаас өмнө generate хийсэн зургаа өөр зориулалтаар (жишээ
 // нь профайл зураг болгож) ашиглахаас сэргийлж, дэлгэц дээр харагдах хувилбар
 // дээр л watermark хийнэ. Захиалгад илгээгдэх (firstPageImageBase64) хувилбар
@@ -363,13 +371,15 @@ async function composeStory(childName, age, gender, interests) {
   generateBtn.disabled = true;
   loadingText.textContent = "Үлгэрээ зохиож байна…";
 
+  const requestId = generateRequestId();
+
   try {
     const data = await fetchJsonWithRetry(
       "/.netlify/functions/generate-story",
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-auth-token": authToken },
-        body: JSON.stringify({ childName, age, gender, interests }),
+        body: JSON.stringify({ childName, age, gender, interests, requestId }),
       },
       {
         onRetry: (attempt, max) => {
@@ -427,6 +437,8 @@ async function generateFirstPage() {
   approveBtn.disabled = true;
   loadingText.textContent = "1-р хуудсыг зурж байна…";
 
+  const requestId = generateRequestId();
+
   try {
     const data = await fetchJsonWithRetry(
       "/.netlify/functions/generate-character",
@@ -440,6 +452,7 @@ async function generateFirstPage() {
           pageIndex: 0,
           totalPages: storyPages.length,
           sceneDescription: storyPages[0].sceneDescription,
+          requestId,
         }),
       },
       {

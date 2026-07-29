@@ -592,6 +592,8 @@ async function generatePattern(order) {
   btn.textContent = "Зурж байна…";
   status.textContent = "";
 
+  const requestId = crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
   try {
     const genData = await fetchJsonWithRetry(
       "/.netlify/functions/generate-pattern",
@@ -603,6 +605,7 @@ async function generatePattern(order) {
           interests: order.interests,
           gender: order.gender,
           patternDescription: description,
+          requestId,
         }),
       },
       {
@@ -716,6 +719,8 @@ async function generatePageAt(order, pageIndex) {
   btn.textContent = "Зурж байна…";
   status.textContent = "";
 
+  const requestId = crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
   try {
     const genData = await fetchJsonWithRetry(
       "/.netlify/functions/generate-character",
@@ -729,6 +734,7 @@ async function generatePageAt(order, pageIndex) {
           pageIndex,
           totalPages: order.storyPages.length,
           sceneDescription: text,
+          requestId,
         }),
       },
       {
