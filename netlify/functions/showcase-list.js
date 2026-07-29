@@ -41,8 +41,19 @@ exports.handler = async () => {
 
     items.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 
+    // Нэг хүүхэд/ном дээр олон удаа дахин зурсан байж болзошгүй тул,
+    // нэрээр нь бүлэглээд, хамгийн сүүлийнх (createdAt) нэгийг л үлдээнэ
+    const seenNames = new Set();
+    const deduped = [];
+    for (const item of items) {
+      const key = (item.childName || "").trim().toLowerCase() || item.id; // нэргүй бол давхардуулахгүйн тулд id-аар ялгана
+      if (seenNames.has(key)) continue;
+      seenNames.add(key);
+      deduped.push(item);
+    }
+
     // Дэлгэц дээр хэт олон зураг ачаалахгүйн тулд сүүлийн 24-ыг л буцаана
-    const limited = items.slice(0, 24);
+    const limited = deduped.slice(0, 24);
 
     return respond(200, { items: limited });
   } catch (err) {
