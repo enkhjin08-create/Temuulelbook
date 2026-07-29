@@ -442,7 +442,7 @@ function renderOrderList(orders) {
     row.className = "order-row";
     row.innerHTML = `
       <div class="order-row-info">
-        <span class="order-row-name">${escapeHtml(o.childName || "(нэргүй)")}</span>
+        <span class="order-row-name">${escapeHtml(o.childName || "(нэргүй)")} <span style="color:var(--coral);font-weight:700;">#${escapeHtml(o.orderNumber || "")}</span></span>
         <span class="order-row-meta">${o.pageCount || 0}/${o.totalPages || "?"} хуудас · ${o.contactPhone || ""} · ${formatDate(o.createdAt)}</span>
       </div>
       <span class="order-status-badge status-${o.status}">${STATUS_LABELS[o.status] || o.status}</span>
@@ -471,6 +471,7 @@ function renderOrderDetail(order) {
     <div class="order-detail-header">
       <div>
         <h2 style="font-family:var(--font-display);margin:0 0 4px;color:var(--plum);">${escapeHtml(order.childName)} — ${escapeHtml(order.storyTitle || "")}</h2>
+        <p style="margin:0 0 6px;font-weight:700;color:var(--coral);">Захиалгын дугаар: #${escapeHtml(order.orderNumber || "")}</p>
         <span class="order-status-badge status-${order.status}">${STATUS_LABELS[order.status] || order.status}</span>
       </div>
       <div class="order-detail-actions">

@@ -44,6 +44,7 @@ const orderAddressInput = document.getElementById("orderAddress");
 const orderNoteInput = document.getElementById("orderNote");
 const orderSubmitBtn = document.getElementById("orderSubmitBtn");
 const orderDone = document.getElementById("orderDone");
+const orderNumberEl = document.getElementById("orderNumberDisplay");
 
 // ---------- auth ----------
 const landingSection = document.getElementById("landingSection");
@@ -334,7 +335,7 @@ orderForm.addEventListener("submit", async (e) => {
   orderSubmitBtn.textContent = "Илгээж байна…";
 
   try {
-    await fetchJsonWithRetry("/.netlify/functions/create-order", {
+    const orderResult = await fetchJsonWithRetry("/.netlify/functions/create-order", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-auth-token": authToken },
       body: JSON.stringify({
@@ -352,6 +353,7 @@ orderForm.addEventListener("submit", async (e) => {
       }),
     });
 
+    orderNumberEl.textContent = orderResult.orderNumber || "";
     orderForm.hidden = true;
     orderDone.hidden = false;
   } catch (err) {
