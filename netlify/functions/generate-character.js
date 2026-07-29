@@ -18,6 +18,7 @@ const { getStore } = require("@netlify/blobs");
 const { checkRateLimit, incrementRateLimit } = require("./_rate-limit");
 const { checkSession } = require("./_auth");
 const { isAdminPinValid } = require("./_admin-auth");
+const { claimOrWaitForRequest, markDone, markError } = require("./_idempotency");
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent";
@@ -59,7 +60,7 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { childName, photoBase64, sceneDescription, gender } = body;
+  const { childName, photoBase64, sceneDescription, gender, requestId } = body;
   const pageIndex = Number.isInteger(body.pageIndex) ? body.pageIndex : 0;
   const totalPages = Number.isInteger(body.totalPages) ? body.totalPages : 1;
 
@@ -74,6 +75,13 @@ exports.handler = async (event) => {
   }
   if (!process.env.GEMINI_API_KEY) {
     return respond(500, { error: "Серверт GEMINI_API_KEY тохируулаагүй байна." });
+  }
+
+  // Client өмнөх (ижил) хүсэлтээ дахин илгээж байгаа эсэхийг шалгана —
+  // тэгвэл дахин Gemini дуудахгүй, өмнөх үр дүнг л ашиглана
+  const idem = await claimOrWaitForRequest(requestId);
+  if (!idem.proceed) {
+    return respond(200, idem.cached);
   }
 
   const isLastPage = pageIndex >= totalPages - 1;
@@ -109,6 +117,7 @@ exports.handler = async (event) => {
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
+      await markError(requestId);
       return respond(502, {
         error: "Gemini API алдаа буцаалаа.",
         detail: `(${geminiRes.status}) ${errText.slice(0, 500)}`,
@@ -121,6 +130,7 @@ exports.handler = async (event) => {
 
     if (!imagePart) {
       const textPart = parts.find((p) => p.text);
+      await markError(requestId);
       return respond(502, {
         error: "Gemini зураг буцаасангүй.",
         detail: textPart ? textPart.text : "Хариу хоосон байна.",
@@ -158,13 +168,17 @@ exports.handler = async (event) => {
 
     await incrementRateLimit(event, "generate-character");
 
-    return respond(200, {
+    const result = {
       imageBase64: `data:${outMime};base64,${outData}`,
       pageIndex,
       isLastPage,
-    });
+    };
+    await markDone(requestId, result);
+
+    return respond(200, result);
   } catch (err) {
     console.error("Gemini generation error:", err);
+    await markError(requestId);
     return respond(500, {
       error: "Зураг үүсгэхэд алдаа гарлаа. Дахин оролдоно уу.",
       detail: String(err && err.message ? err.message : err),

@@ -18,6 +18,7 @@ const DAILY_LIMIT = 20; // нэг IP хаягт өдөрт зөвшөөрөх д
 const { checkRateLimit, incrementRateLimit } = require("./_rate-limit");
 const { checkSession } = require("./_auth");
 const { isAdminPinValid } = require("./_admin-auth");
+const { claimOrWaitForRequest, markDone, markError } = require("./_idempotency");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -45,7 +46,7 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { childName, age, interests, gender } = body;
+  const { childName, age, interests, gender, requestId } = body;
 
   if (!childName || typeof childName !== "string") {
     return respond(400, { error: "Хүүхдийн нэрийг оруулна уу." });
@@ -61,6 +62,12 @@ exports.handler = async (event) => {
   }
   if (!process.env.GEMINI_API_KEY) {
     return respond(500, { error: "Серверт GEMINI_API_KEY тохируулаагүй байна." });
+  }
+
+  // Client өмнөх (ижил) хүсэлтээ дахин илгээж байгаа эсэхийг шалгана
+  const idem = await claimOrWaitForRequest(requestId);
+  if (!idem.proceed) {
+    return respond(200, idem.cached);
   }
 
   const genderEn = gender === "хүү" ? "boy" : "girl";
@@ -119,6 +126,7 @@ this shape:
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
+      await markError(requestId);
       return respond(502, {
         error: "Gemini API алдаа буцаалаа.",
         detail: `(${geminiRes.status}) ${errText.slice(0, 500)}`,
@@ -130,6 +138,7 @@ this shape:
     const textPart = parts.find((p) => p.text);
 
     if (!textPart) {
+      await markError(requestId);
       return respond(502, { error: "Gemini текст буцаасангүй." });
     }
 
@@ -137,6 +146,7 @@ this shape:
     try {
       story = JSON.parse(textPart.text);
     } catch (e) {
+      await markError(requestId);
       return respond(502, {
         error: "Gemini-ийн хариу JSON биш байна.",
         detail: textPart.text.slice(0, 500),
@@ -144,6 +154,7 @@ this shape:
     }
 
     if (!story.pages || !Array.isArray(story.pages) || story.pages.length === 0) {
+      await markError(requestId);
       return respond(502, { error: "Түүхийн хуудсууд буруу форматтай ирлээ." });
     }
 
@@ -155,12 +166,16 @@ this shape:
 
     await incrementRateLimit(event, "generate-story");
 
-    return respond(200, {
+    const result = {
       title: String(story.title || `${childName}-ийн үлгэр`).slice(0, 200),
       pages,
-    });
+    };
+    await markDone(requestId, result);
+
+    return respond(200, result);
   } catch (err) {
     console.error("Story generation error:", err);
+    await markError(requestId);
     return respond(500, {
       error: "Түүх зохиоход алдаа гарлаа. Дахин оролдоно уу.",
       detail: String(err && err.message ? err.message : err),

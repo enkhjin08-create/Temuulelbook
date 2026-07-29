@@ -11,6 +11,7 @@
 
 const { buildPatternPrompt } = require("./stories");
 const { checkAdminPin } = require("./_admin-auth");
+const { claimOrWaitForRequest, markDone, markError } = require("./_idempotency");
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent";
@@ -32,13 +33,18 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { storyTitle, interests, gender, patternDescription } = body;
+  const { storyTitle, interests, gender, patternDescription, requestId } = body;
 
   if (!patternDescription || typeof patternDescription !== "string") {
     return respond(400, { error: "Хээний тайлбар дутуу байна." });
   }
   if (!process.env.GEMINI_API_KEY) {
     return respond(500, { error: "Серверт GEMINI_API_KEY тохируулаагүй байна." });
+  }
+
+  const idem = await claimOrWaitForRequest(requestId);
+  if (!idem.proceed) {
+    return respond(200, idem.cached);
   }
 
   const prompt = buildPatternPrompt({
@@ -66,6 +72,7 @@ exports.handler = async (event) => {
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
+      await markError(requestId);
       return respond(502, {
         error: "Gemini API алдаа буцаалаа.",
         detail: `(${geminiRes.status}) ${errText.slice(0, 500)}`,
@@ -78,6 +85,7 @@ exports.handler = async (event) => {
 
     if (!imagePart) {
       const textPart = parts.find((p) => p.text);
+      await markError(requestId);
       return respond(502, {
         error: "Gemini зураг буцаасангүй.",
         detail: textPart ? textPart.text : "Хариу хоосон байна.",
@@ -87,9 +95,13 @@ exports.handler = async (event) => {
     const outMime = imagePart.inlineData.mimeType || "image/png";
     const outData = imagePart.inlineData.data;
 
-    return respond(200, { imageBase64: `data:${outMime};base64,${outData}` });
+    const result = { imageBase64: `data:${outMime};base64,${outData}` };
+    await markDone(requestId, result);
+
+    return respond(200, result);
   } catch (err) {
     console.error("Pattern generation error:", err);
+    await markError(requestId);
     return respond(500, {
       error: "Хээ үүсгэхэд алдаа гарлаа. Дахин оролдоно уу.",
       detail: String(err && err.message ? err.message : err),
