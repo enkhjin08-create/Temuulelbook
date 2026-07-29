@@ -172,6 +172,46 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Захиалагч захиалахаас өмнө generate хийсэн зургаа өөр зориулалтаар (жишээ
+// нь профайл зураг болгож) ашиглахаас сэргийлж, дэлгэц дээр харагдах хувилбар
+// дээр л watermark хийнэ. Захиалгад илгээгдэх (firstPageImageBase64) хувилбар
+// цэвэр хэвээр үлддэг тул захиалсны дараа таны бэлдэх номонд watermark орохгүй.
+function addWatermark(dataUrl, callback) {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = "#2E2247";
+    ctx.font = `bold ${Math.round(canvas.width * 0.05)}px "Baloo 2", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(-Math.PI / 6);
+
+    const text = "ЗӨВХӨН ТҮҮНД · ЗАГВАР";
+    const stepY = canvas.height * 0.24;
+    const stepX = canvas.width * 0.75;
+    for (let y = -canvas.height; y < canvas.height * 1.5; y += stepY) {
+      for (let x = -canvas.width; x < canvas.width * 1.5; x += stepX) {
+        ctx.fillText(text, x, y);
+      }
+    }
+    ctx.restore();
+
+    callback(canvas.toDataURL("image/jpeg", 0.92));
+  };
+  img.onerror = () => {
+    callback(dataUrl); // watermark хийж чадахгүй бол эх зургийг харуулна
+  };
+  img.src = dataUrl;
+}
+
 // ---------- сүлжээ/сервер талын түр зуурын алдааг автоматаар дахин оролддог fetch ----------
 async function fetchJsonWithRetry(url, options, { maxRetries = 5, retryDelayMs = 3000, timeoutMs = 29000, onRetry } = {}) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -409,10 +449,12 @@ async function generateFirstPage() {
       }
     );
 
-    firstPageImageBase64 = data.imageBase64;
+    firstPageImageBase64 = data.imageBase64; // цэвэр хувилбар — захиалгад ашиглагдана
 
     originalImg.src = photoDataUrl;
-    generatedImg.src = data.imageBase64;
+    addWatermark(data.imageBase64, (watermarked) => {
+      generatedImg.src = watermarked;
+    });
     generatedCaption.textContent = storyPages[0].caption || "1-р хуудас";
 
     setState("result");
