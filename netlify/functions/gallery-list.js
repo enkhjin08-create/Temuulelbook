@@ -28,20 +28,28 @@ exports.handler = async (event) => {
     const store = getGalleryStore();
     const { blobs } = await store.list();
 
-    const items = [];
-    for (const b of blobs) {
-      if (b.key.endsWith(":original")) continue; // зөвхөн эх зурагны хос лавлагаагаар ашиглагдана
-      try {
-        const meta = await store.getMetadata(b.key);
-        items.push({ id: b.key, ...(meta && meta.metadata ? meta.metadata : {}) });
-      } catch (e) {
-        // тухайн нэг зурагны metadata уншигдахгүй бол алгасаад үргэлжлүүлнэ
-      }
-    }
+    const keys = blobs.map((b) => b.key).filter((key) => !key.endsWith(":original"));
+
+    const metaResults = await Promise.all(
+      keys.map(async (key) => {
+        try {
+          const meta = await store.getMetadata(key);
+          return { id: key, ...(meta && meta.metadata ? meta.metadata : {}) };
+        } catch (e) {
+          return null; // тухайн нэг зурагны metadata уншигдахгүй бол алгасана
+        }
+      })
+    );
+
+    const items = metaResults.filter(Boolean);
 
     items.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 
-    return respond(200, { items });
+    // Зураг бүрийг тусад нь (PIN-тэй) дуудаж татдаг тул хэт олон бол
+    // маш удаан болдог — сүүлийн 30-ыг л буцаана
+    const limited = items.slice(0, 30);
+
+    return respond(200, { items: limited, total: items.length });
   } catch (err) {
     return respond(500, { error: String(err && err.message ? err.message : err) });
   }

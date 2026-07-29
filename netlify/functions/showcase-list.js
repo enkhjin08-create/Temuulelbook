@@ -22,22 +22,22 @@ exports.handler = async () => {
     const store = getGalleryStore();
     const { blobs } = await store.list();
 
-    const items = [];
-    for (const b of blobs) {
-      if (b.key.endsWith(":original")) continue;
-      try {
-        const meta = await store.getMetadata(b.key);
-        const m = meta && meta.metadata ? meta.metadata : {};
-        if (Number(m.pageIndex) !== 0) continue; // зөвхөн 1-р хуудас
-        items.push({
-          id: b.key,
-          childName: m.childName || "",
-          createdAt: m.createdAt || "",
-        });
-      } catch (e) {
-        // алгасна
-      }
-    }
+    const keys = blobs.map((b) => b.key).filter((key) => !key.endsWith(":original"));
+
+    const metaResults = await Promise.all(
+      keys.map(async (key) => {
+        try {
+          const meta = await store.getMetadata(key);
+          const m = meta && meta.metadata ? meta.metadata : {};
+          if (Number(m.pageIndex) !== 0) return null; // зөвхөн 1-р хуудас
+          return { id: key, childName: m.childName || "", createdAt: m.createdAt || "" };
+        } catch (e) {
+          return null;
+        }
+      })
+    );
+
+    const items = metaResults.filter(Boolean);
 
     items.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 
