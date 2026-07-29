@@ -539,9 +539,17 @@ async function checkExistingSession() {
     return;
   }
   try {
-    const res = await fetch("/.netlify/functions/me", {
-      headers: { "x-auth-token": authToken },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    let res;
+    try {
+      res = await fetch("/.netlify/functions/me", {
+        headers: { "x-auth-token": authToken },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
     if (res.ok) {
       const data = await res.json();
       showApp(data.email);
