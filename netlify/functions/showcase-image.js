@@ -1,11 +1,12 @@
-// netlify/functions/gallery-image.js
+// netlify/functions/showcase-image.js
 //
-// Нэг зургийг шууд <img src="..."> болгож ашиглах боломжтойгоор буцаана.
+// ПУБЛИК function (PIN шаардахгүй). Зөвхөн pageIndex === 0 (1-р хуудас)
+// байхаар баталгаажсан зургийг л буцаана — id таамаглаж бусад хуудас/эх
+// зургийг харах боломжгүй байхын тулд metadata-г заавал шалгана.
 //
-// GET /.netlify/functions/gallery-image?id=xxxx
+// GET /.netlify/functions/showcase-image?id=xxxx
 
 const { getStore } = require("@netlify/blobs");
-const { checkAdminPin } = require("./_admin-auth");
 
 function getGalleryStore() {
   const siteID = process.env.BLOBS_SITE_ID;
@@ -17,25 +18,29 @@ function getGalleryStore() {
 }
 
 exports.handler = async (event) => {
-  const auth = checkAdminPin(event);
-  if (!auth.ok) {
-    return { statusCode: auth.statusCode, body: auth.error };
-  }
-
   const id = event.queryStringParameters && event.queryStringParameters.id;
   if (!id) {
     return { statusCode: 400, body: "id шаардлагатай" };
   }
+  if (id.endsWith(":original")) {
+    return { statusCode: 403, body: "Хандах эрхгүй" };
+  }
 
   try {
     const store = getGalleryStore();
-    const [data, meta] = await Promise.all([store.get(id), store.getMetadata(id)]);
+    const meta = await store.getMetadata(id);
+    const m = meta && meta.metadata ? meta.metadata : {};
 
+    if (Number(m.pageIndex) !== 0) {
+      return { statusCode: 403, body: "Хандах эрхгүй" };
+    }
+
+    const data = await store.get(id);
     if (!data) {
       return { statusCode: 404, body: "Олдсонгүй" };
     }
 
-    const mimeType = (meta && meta.metadata && meta.metadata.mimeType) || "image/png";
+    const mimeType = m.mimeType || "image/png";
 
     return {
       statusCode: 200,

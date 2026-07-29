@@ -7,6 +7,7 @@
 // Буцаах: { items: [{ id, childName, pageIndex, storyId, mimeType, createdAt }, ...] }
 
 const { getStore } = require("@netlify/blobs");
+const { checkAdminPin } = require("./_admin-auth");
 
 function getGalleryStore() {
   const siteID = process.env.BLOBS_SITE_ID;
@@ -17,13 +18,19 @@ function getGalleryStore() {
   return getStore("pixietale-gallery");
 }
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  const auth = checkAdminPin(event);
+  if (!auth.ok) {
+    return respond(auth.statusCode, { error: auth.error });
+  }
+
   try {
     const store = getGalleryStore();
     const { blobs } = await store.list();
 
     const items = [];
     for (const b of blobs) {
+      if (b.key.endsWith(":original")) continue; // зөвхөн эх зурагны хос лавлагаагаар ашиглагдана
       try {
         const meta = await store.getMetadata(b.key);
         items.push({ id: b.key, ...(meta && meta.metadata ? meta.metadata : {}) });
@@ -34,16 +41,16 @@ exports.handler = async () => {
 
     items.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items }),
-    };
+    return respond(200, { items });
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: String(err && err.message ? err.message : err) }),
-    };
+    return respond(500, { error: String(err && err.message ? err.message : err) });
   }
 };
+
+function respond(statusCode, obj) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(obj),
+  };
+}

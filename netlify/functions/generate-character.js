@@ -130,17 +130,25 @@ exports.handler = async (event) => {
     const outMime = imagePart.inlineData.mimeType || "image/png";
     const outData = imagePart.inlineData.data;
 
-    // Generate хийсэн зургийг gallery-д хадгална (алдаа гарвал ч гол хариуг
-    // тасалдуулахгүй — зөвхөн log-д бичээд өнгөрнө)
+    // Generate хийсэн зургийг (эх reference зурагтай нь хамт) gallery-д
+    // хадгална (алдаа гарвал ч гол хариуг тасалдуулахгүй — зөвхөн log-д
+    // бичээд өнгөрнө)
     try {
       const galleryId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const galleryStore = getGalleryStore();
+
+      const originalKey = `${galleryId}:original`;
+      await galleryStore.set(originalKey, rawBase64, {
+        metadata: { mimeType },
+      });
+
       await galleryStore.set(galleryId, outData, {
         metadata: {
           childName,
           pageIndex,
           totalPages,
           mimeType: outMime,
+          originalKey,
           createdAt: new Date().toISOString(),
         },
       });
