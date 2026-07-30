@@ -45,6 +45,8 @@ const orderNoteInput = document.getElementById("orderNote");
 const orderSubmitBtn = document.getElementById("orderSubmitBtn");
 const orderDone = document.getElementById("orderDone");
 const orderNumberEl = document.getElementById("orderNumberDisplay");
+const claimPaidBtn = document.getElementById("claimPaidBtn");
+const claimPaidNote = document.getElementById("claimPaidNote");
 
 // ---------- auth ----------
 const landingSection = document.getElementById("landingSection");
@@ -95,6 +97,7 @@ let currentInterests = null;
 let currentStoryTitle = null;
 let storyPages = []; // [{ caption, sceneDescription }, ...]
 let firstPageImageBase64 = null;
+let currentOrderId = null;
 let lastAttempt = null; // { type: "story", ... } | { type: "page0" }
 
 // ---------- photo upload ----------
@@ -354,6 +357,10 @@ orderForm.addEventListener("submit", async (e) => {
     });
 
     orderNumberEl.textContent = orderResult.orderNumber || "";
+    currentOrderId = orderResult.id;
+    claimPaidBtn.hidden = false;
+    claimPaidBtn.disabled = false;
+    claimPaidNote.hidden = true;
     orderForm.hidden = true;
     orderDone.hidden = false;
   } catch (err) {
@@ -361,6 +368,30 @@ orderForm.addEventListener("submit", async (e) => {
   } finally {
     orderSubmitBtn.disabled = false;
     orderSubmitBtn.textContent = "Захиалга баталгаажуулах";
+  }
+});
+
+claimPaidBtn.addEventListener("click", async () => {
+  if (!currentOrderId) return;
+  claimPaidBtn.disabled = true;
+  claimPaidBtn.textContent = "Илгээж байна…";
+
+  try {
+    const res = await fetch("/.netlify/functions/claim-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-auth-token": authToken },
+      body: JSON.stringify({ orderId: currentOrderId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Алдаа гарлаа.");
+    }
+    claimPaidBtn.hidden = true;
+    claimPaidNote.hidden = false;
+  } catch (err) {
+    alert(`Алдаа гарлаа: ${err.message}`);
+    claimPaidBtn.disabled = false;
+    claimPaidBtn.textContent = "✓ Би төлбөр төлсөн";
   }
 });
 
