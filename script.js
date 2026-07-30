@@ -206,7 +206,7 @@ function addWatermark(dataUrl, callback) {
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.rotate(-Math.PI / 6);
 
-    const text = "ЗӨВХӨН ТҮҮНД · ЗАГВАР";
+    const text = "@kidsbook_zuvhuntuund · ЗАГВАР";
     const stepY = canvas.height * 0.24;
     const stepX = canvas.width * 0.75;
     for (let y = -canvas.height; y < canvas.height * 1.5; y += stepY) {
