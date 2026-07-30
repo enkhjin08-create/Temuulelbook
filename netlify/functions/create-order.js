@@ -162,7 +162,7 @@ exports.handler = async (event) => {
       subject: "Таны захиалга бүртгэгдлээ — Зөвхөн Түүнд Kids Book",
       html: `
         <h2>Баярлалаа, захиалга бүртгэгдлээ! 🎉</h2>
-        <p><b>${escapeHtml(childName)}</b>-ийн хувийн үлгэрийг бид одоо бэлдэж эхэлнэ.</p>
+        <p><b>${escapeHtml(childName)}</b>-ийн үлгэрийг бид одоо бэлдэж эхэлнэ.</p>
         <p><b>Захиалгын дугаар:</b> ${escapeHtml(orderNumber)}</p>
         <p><b>Үнэ:</b> ${PRICE.toLocaleString()}₮</p>
         <p>Дараах дансанд шилжүүлгээ хийхдээ <b>гүйлгээний утга дээр захиалгын дугаараа (${escapeHtml(orderNumber)}) бичнэ үү</b>:</p>
