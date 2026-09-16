@@ -20,7 +20,10 @@ const resultError = document.getElementById("resultError");
 const resultStoryReady = document.getElementById("resultStoryReady");
 const resultPair = document.getElementById("resultPair");
 const bookMockupArea = document.getElementById("bookMockupArea");
-const bookMockupImg = document.getElementById("bookMockupImg");
+const bookMockup = document.getElementById("bookMockup");
+const bookMockupCoverImg = document.getElementById("bookMockupCoverImg");
+const bookMockupPageImg = document.getElementById("bookMockupPageImg");
+const bookMockupText = document.getElementById("bookMockupText");
 const bookMockupTitle = document.getElementById("bookMockupTitle");
 const errorDetail = document.getElementById("errorDetail");
 const retryBtn = document.getElementById("retryBtn");
@@ -207,22 +210,16 @@ function addWatermark(dataUrl, callback) {
     ctx.drawImage(img, 0, 0);
 
     ctx.save();
-    ctx.globalAlpha = 0.1;
+    ctx.globalAlpha = 0.14;
     ctx.fillStyle = "#2E2247";
-    ctx.font = `bold ${Math.round(canvas.width * 0.05)}px "Baloo 2", sans-serif`;
+    ctx.font = `bold ${Math.round(canvas.width * 0.06)}px "Baloo 2", sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.rotate(-Math.PI / 6);
 
-    const text = "@kidsbook_zuvhuntuund · ЗАГВАР";
-    const stepY = canvas.height * 0.24;
-    const stepX = canvas.width * 0.75;
-    for (let y = -canvas.height; y < canvas.height * 1.5; y += stepY) {
-      for (let x = -canvas.width; x < canvas.width * 1.5; x += stepX) {
-        ctx.fillText(text, x, y);
-      }
-    }
+    // Зөвхөн НЭГ дундах зурвас — олон давталтгүй
+    ctx.fillText("@kidsbook_zuvhuntuund · ЗАГВАР", 0, 0);
     ctx.restore();
 
     callback(canvas.toDataURL("image/jpeg", 0.92));
@@ -574,11 +571,21 @@ async function generateFirstPage() {
     originalImg.src = photoDataUrl;
     addWatermark(data.imageBase64, (watermarked) => {
       generatedImg.src = watermarked;
-      bookMockupImg.src = watermarked;
+      bookMockupPageImg.src = watermarked;
     });
     generatedCaption.textContent = storyPages[0].caption || "1-р хуудас";
+
+    // Хавтасны зурган дээр ТАМГАГҮЙ (цэвэр) хувилбарыг ашиглана
+    bookMockupCoverImg.src = data.imageBase64;
     bookMockupTitle.textContent = currentStoryTitle || `${currentChildName}-ийн үлгэр`;
+    bookMockupText.textContent = storyPages[0].caption || "";
+
     bookMockupArea.hidden = false;
+    bookMockup.classList.remove("book-open");
+    // Хавтас эхлээд хаалттай харагдаад, богино азгаас дараа өөрөө нээгдэнэ
+    requestAnimationFrame(() => {
+      setTimeout(() => bookMockup.classList.add("book-open"), 600);
+    });
 
     setState("result");
     orderCtaArea.hidden = false;

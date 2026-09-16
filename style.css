@@ -823,7 +823,7 @@ input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus,
   margin-top: 6px;
 }
 
-/* ---------- номын mockup ---------- */
+/* ---------- номын mockup (нээгдэх animation) ---------- */
 
 .book-mockup-area {
   width: 100%;
@@ -842,35 +842,63 @@ input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus,
 }
 .book-mockup {
   position: relative;
-  width: 220px;
-  aspect-ratio: 3 / 4;
-  perspective: 1200px;
+  width: 280px;
+  aspect-ratio: 4 / 3;
+  perspective: 1400px;
 }
-.book-spine {
+
+/* Нээгдэхэд харагдах дотоод хуудас (текст + зураг) */
+.book-spread {
   position: absolute;
-  left: -7px;
-  top: 6px;
-  bottom: 6px;
-  width: 12px;
-  background: linear-gradient(to right, rgba(46,34,71,0.45), rgba(46,34,71,0.05));
-  border-radius: 6px 0 0 6px;
-  transform: rotateY(-20deg);
-  transform-origin: right center;
+  inset: 0;
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fdf8f0;
+  box-shadow: 0 12px 30px rgba(46,34,71,0.3);
 }
-.book-cover {
-  position: relative;
+.book-spread-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 14px;
+  border-right: 1px dashed rgba(46,34,71,0.15);
+}
+.book-spread-left p {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--plum);
+  text-align: center;
+  line-height: 1.5;
+}
+.book-spread-right {
+  flex: 1;
+  background: var(--cream-2);
+}
+.book-spread-right img {
   width: 100%;
   height: 100%;
-  border-radius: 4px 12px 12px 4px;
-  overflow: hidden;
-  box-shadow:
-    -10px 14px 28px rgba(46,34,71,0.35),
-    inset -4px 0 8px rgba(0,0,0,0.18);
-  transform: rotateY(-20deg) rotateX(2deg);
-  transition: transform 0.4s ease;
+  object-fit: cover;
+  display: block;
 }
-.book-mockup:hover .book-cover {
-  transform: rotateY(-10deg) rotateX(1deg);
+
+/* Хавтас — нээгдэхээсээ өмнө бүхэлд нь бүрхэж, дараа нь зүүн ирмэгээрээ эргэж нээгддэг */
+.book-cover {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: -8px 10px 26px rgba(46,34,71,0.35);
+  transform-origin: left center;
+  transform: rotateY(0deg);
+  transition: transform 1.3s cubic-bezier(0.65, 0, 0.35, 1);
+  z-index: 3;
+  backface-visibility: hidden;
+}
+.book-mockup.book-open .book-cover {
+  transform: rotateY(-150deg);
 }
 .book-cover img {
   width: 100%;
