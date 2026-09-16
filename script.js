@@ -204,7 +204,7 @@ function addWatermark(dataUrl, callback) {
     ctx.drawImage(img, 0, 0);
 
     ctx.save();
-    ctx.globalAlpha = 0.22;
+    ctx.globalAlpha = 0.1;
     ctx.fillStyle = "#2E2247";
     ctx.font = `bold ${Math.round(canvas.width * 0.05)}px "Baloo 2", sans-serif`;
     ctx.textAlign = "center";
