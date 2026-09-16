@@ -19,6 +19,9 @@ const resultLoading = document.getElementById("resultLoading");
 const resultError = document.getElementById("resultError");
 const resultStoryReady = document.getElementById("resultStoryReady");
 const resultPair = document.getElementById("resultPair");
+const bookMockupArea = document.getElementById("bookMockupArea");
+const bookMockupImg = document.getElementById("bookMockupImg");
+const bookMockupTitle = document.getElementById("bookMockupTitle");
 const errorDetail = document.getElementById("errorDetail");
 const retryBtn = document.getElementById("retryBtn");
 
@@ -571,8 +574,11 @@ async function generateFirstPage() {
     originalImg.src = photoDataUrl;
     addWatermark(data.imageBase64, (watermarked) => {
       generatedImg.src = watermarked;
+      bookMockupImg.src = watermarked;
     });
     generatedCaption.textContent = storyPages[0].caption || "1-р хуудас";
+    bookMockupTitle.textContent = currentStoryTitle || `${currentChildName}-ийн үлгэр`;
+    bookMockupArea.hidden = false;
 
     setState("result");
     orderCtaArea.hidden = false;
@@ -615,6 +621,7 @@ function setState(state) {
     orderForm.hidden = true;
     orderDone.hidden = true;
     pageEditArea.hidden = true;
+    bookMockupArea.hidden = true;
   }
 }
 
