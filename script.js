@@ -42,6 +42,11 @@ const orderForm = document.getElementById("orderForm");
 const orderPhoneInput = document.getElementById("orderPhone");
 const orderAddressInput = document.getElementById("orderAddress");
 const orderNoteInput = document.getElementById("orderNote");
+const promoCodeInput = document.getElementById("promoCodeInput");
+const promoApplyBtn = document.getElementById("promoApplyBtn");
+const promoMessage = document.getElementById("promoMessage");
+const priceSummaryAmount = document.getElementById("priceSummaryAmount");
+const orderDonePriceEl = document.getElementById("orderDonePrice");
 const orderSubmitBtn = document.getElementById("orderSubmitBtn");
 const orderDone = document.getElementById("orderDone");
 const orderNumberEl = document.getElementById("orderNumberDisplay");
@@ -98,6 +103,7 @@ let currentStoryTitle = null;
 let storyPages = []; // [{ caption, sceneDescription }, ...]
 let firstPageImageBase64 = null;
 let currentOrderId = null;
+let appliedPromoCode = "";
 let lastAttempt = null; // { type: "story", ... } | { type: "page0" }
 
 // ---------- photo upload ----------
@@ -301,6 +307,10 @@ genForm.addEventListener("submit", async (e) => {
   currentGender = gender;
   currentAge = age;
   currentInterests = interests;
+  appliedPromoCode = "";
+  promoCodeInput.value = "";
+  promoMessage.hidden = true;
+  updatePriceSummary(120000, 0, "");
   storyPages = [];
   firstPageImageBase64 = null;
 
@@ -321,9 +331,68 @@ approveBtn.addEventListener("click", () => {
 });
 
 orderCtaBtn.addEventListener("click", () => {
-  orderCtaArea.hidden = true;
-  orderForm.hidden = false;
+  if (authToken) {
+    orderCtaArea.hidden = true;
+    orderForm.hidden = false;
+  } else {
+    pendingOrderIntent = true;
+    orderCtaArea.hidden = true;
+    showLoginPrompt();
+  }
 });
+
+promoApplyBtn.addEventListener("click", async () => {
+  const code = promoCodeInput.value.trim();
+  if (!code) {
+    promoMessage.hidden = false;
+    promoMessage.className = "promo-message promo-error";
+    promoMessage.textContent = "Промо кодоо оруулна уу.";
+    return;
+  }
+
+  promoApplyBtn.disabled = true;
+  promoApplyBtn.textContent = "Шалгаж байна…";
+
+  try {
+    const res = await fetch("/.netlify/functions/validate-promo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+
+    if (!data.valid) {
+      appliedPromoCode = "";
+      updatePriceSummary(120000, 0, "");
+      promoMessage.hidden = false;
+      promoMessage.className = "promo-message promo-error";
+      promoMessage.textContent = data.error || "Промо код хүчингүй байна.";
+      return;
+    }
+
+    appliedPromoCode = data.code;
+    updatePriceSummary(data.basePrice, data.discountAmount, data.code);
+    promoMessage.hidden = false;
+    promoMessage.className = "promo-message promo-success";
+    promoMessage.textContent = `✓ Промо код ашигласан — ${data.discountAmount.toLocaleString()}₮ хямдарлаа!`;
+  } catch (err) {
+    promoMessage.hidden = false;
+    promoMessage.className = "promo-message promo-error";
+    promoMessage.textContent = `Алдаа гарлаа: ${err.message}`;
+  } finally {
+    promoApplyBtn.disabled = false;
+    promoApplyBtn.textContent = "Шалгах";
+  }
+});
+
+function updatePriceSummary(basePrice, discountAmount, promoCode) {
+  const finalPrice = basePrice - discountAmount;
+  if (discountAmount > 0) {
+    priceSummaryAmount.innerHTML = `<span class="price-original">${basePrice.toLocaleString()}₮</span>${finalPrice.toLocaleString()}₮`;
+  } else {
+    priceSummaryAmount.textContent = `${basePrice.toLocaleString()}₮`;
+  }
+}
 
 orderForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -353,11 +422,13 @@ orderForm.addEventListener("submit", async (e) => {
         contactPhone: phone,
         contactAddress: address,
         contactNote: orderNoteInput.value.trim(),
+        promoCode: appliedPromoCode || undefined,
       }),
     });
 
     orderNumberEl.textContent = orderResult.orderNumber || "";
     currentOrderId = orderResult.id;
+    orderDonePriceEl.textContent = `${(orderResult.finalPrice || 120000).toLocaleString()}₮`;
     claimPaidBtn.hidden = false;
     claimPaidBtn.disabled = false;
     claimPaidNote.hidden = true;
@@ -549,21 +620,34 @@ function setState(state) {
 
 // ================= AUTH =================
 
+let pendingOrderIntent = false; // "Захиалах" дарсан ч нэвтрээгүй үед true болно
+
 function showApp(email) {
   authEmail = email;
   landingSection.hidden = true;
-  appSection.hidden = false;
   authStatus.hidden = false;
   userEmailLabel.textContent = email;
+
+  if (pendingOrderIntent) {
+    pendingOrderIntent = false;
+    orderCtaArea.hidden = true;
+    orderForm.hidden = false;
+  }
 }
 
-function showLanding() {
+function showLoginPrompt() {
+  hideAllAuthPanels();
+  authTabs.hidden = false;
+  loginForm.hidden = false;
+  landingSection.hidden = false;
+  landingSection.scrollIntoView({ behavior: "smooth" });
+}
+
+function clearAuth() {
   authToken = null;
   authEmail = null;
   localStorage.removeItem("ztAuthToken");
   localStorage.removeItem("ztAuthEmail");
-  landingSection.hidden = false;
-  appSection.hidden = true;
   authStatus.hidden = true;
 }
 
@@ -588,6 +672,7 @@ async function checkExistingSession() {
     hideAllAuthPanels();
     resetPasswordForm.hidden = false;
     resetPasswordForm.dataset.token = resetToken;
+    landingSection.hidden = false;
     window.history.replaceState({}, "", window.location.pathname);
     return;
   }
@@ -595,6 +680,7 @@ async function checkExistingSession() {
   // Имэйл дэх баталгаажуулах холбоос дээр дарж ирсэн эсэхийг эхлээд шалгана
   if (verifyToken) {
     hideAllAuthPanels();
+    landingSection.hidden = false;
     verifyStatus.hidden = false;
     verifyStatus.className = "verify-status verify-loading";
     verifyStatus.textContent = "И-мэйлээ баталгаажуулж байна…";
@@ -622,8 +708,10 @@ async function checkExistingSession() {
     }
   }
 
+  // Энгийн зочин (эсвэл өмнө нь нэвтэрч байсан) — апп шууд ашиглагдана,
+  // нэвтрэлтийг зөвхөн захиалах үед шаардана
   if (!authToken) {
-    showLanding();
+    clearAuth();
     return;
   }
   try {
@@ -640,12 +728,14 @@ async function checkExistingSession() {
     }
     if (res.ok) {
       const data = await res.json();
-      showApp(data.email);
+      authEmail = data.email;
+      authStatus.hidden = false;
+      userEmailLabel.textContent = data.email;
     } else {
-      showLanding();
+      clearAuth();
     }
   } catch (e) {
-    showLanding();
+    clearAuth();
   }
 }
 
@@ -793,5 +883,5 @@ signupForm.addEventListener("submit", async (e) => {
 });
 
 logoutBtn.addEventListener("click", () => {
-  showLanding();
+  clearAuth();
 });

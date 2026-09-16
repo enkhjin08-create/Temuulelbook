@@ -16,8 +16,6 @@
 const { buildPagePrompt } = require("./stories");
 const { getStore } = require("@netlify/blobs");
 const { checkRateLimit, incrementRateLimit } = require("./_rate-limit");
-const { checkSession } = require("./_auth");
-const { isAdminPinValid } = require("./_admin-auth");
 const { claimOrWaitForRequest, markDone, markError } = require("./_idempotency");
 
 const GEMINI_ENDPOINT =
@@ -37,13 +35,6 @@ function getGalleryStore() {
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return respond(405, { error: "Зөвхөн POST хүсэлт хүлээн авна." });
-  }
-
-  if (!isAdminPinValid(event)) {
-    const session = await checkSession(event);
-    if (!session.ok) {
-      return respond(401, { error: "Энэ үйлдлийг хийхийн тулд нэвтэрч орно уу." });
-    }
   }
 
   const rateLimit = await checkRateLimit(event, "generate-character", DAILY_LIMIT);

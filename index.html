@@ -35,14 +35,13 @@
 
 <main>
 
-  <!-- Нэвтрээгүй үед харагдах танилцуулга + нэвтрэх/бүртгүүлэх хэсэг -->
-  <section id="landingSection">
+  <!-- Захиалах үед л шаардагдах нэвтрэх/бүртгүүлэх хэсэг (анхдагчаар нуугдмал) -->
+  <section id="landingSection" hidden>
     <section class="hero">
-      <p class="eyebrow">Зөвхөн түүнд зориулав</p>
-      <h1>Хүүхдийнхээ зургийг<br><em>үлгэрийн дүр</em> болгоё</h1>
+      <p class="eyebrow">Захиалахын тулд</p>
+      <h1>Эхлээд <em>нэвтэрч</em> орно уу</h1>
       <p class="hero-sub">
-        Нэр болон нэг гэрэл зургийг оруулаарай — таны хүүхэд түүхийн гол баатар болон
-        номын хуудсан дээр амилах болно. Үргэлжлүүлэхийн тулд эхлээд нэвтэрч орно уу.
+        Захиалгаа хянаж, тантай холбогдохын тулд и-мэйл хаягаар бүртгүүлэх шаардлагатай.
       </p>
     </section>
 
@@ -114,8 +113,17 @@
     </div>
   </section>
 
-  <!-- Нэвтэрсний дараа харагдах гол апп -->
-  <div id="appSection" hidden>
+  <!-- Гол апп — шууд ашиглах боломжтой, нэвтрэлт шаардахгүй -->
+  <div id="appSection">
+
+  <section class="hero">
+    <p class="eyebrow">Зөвхөн түүнд зориулав</p>
+    <h1>Хүүхдийнхээ зургийг<br><em>үлгэрийн дүр</em> болгоё</h1>
+    <p class="hero-sub">
+      Нэр болон нэг гэрэл зургийг оруулаарай — таны хүүхэд түүхийн гол баатар болон
+      номын хуудсан дээр амилах болно. Таалагдвал л захиалж, бүртгүүлнэ.
+    </p>
+  </section>
 
   <section class="story-card" id="storyCard">
     <div class="story-cover" aria-hidden="true">📖</div>
@@ -241,6 +249,18 @@
 
       <form class="order-form" id="orderForm" hidden>
         <label class="field">
+          <span class="field-label">Промо код (заавал биш)</span>
+          <div class="promo-row">
+            <input type="text" id="promoCodeInput" placeholder="Жишээ: WELCOME10" maxlength="30" style="text-transform:uppercase;" />
+            <button type="button" class="btn-promo-apply" id="promoApplyBtn">Шалгах</button>
+          </div>
+          <p class="promo-message" id="promoMessage" hidden></p>
+        </label>
+        <div class="price-summary" id="priceSummary">
+          <span>Төлөх дүн:</span>
+          <b id="priceSummaryAmount">120,000₮</b>
+        </div>
+        <label class="field">
           <span class="field-label">Утасны дугаар</span>
           <input type="tel" id="orderPhone" placeholder="9911XXXX" required />
         </label>
@@ -256,7 +276,7 @@
       </form>
 
       <div class="order-done" id="orderDone" hidden>
-        <p>🎉 Захиалга бүртгэгдлээ! Дараах дансанд <b>120,000₮</b> шилжүүлнэ үү:</p>
+        <p>🎉 Захиалга бүртгэгдлээ! Дараах дансанд <b id="orderDonePrice">120,000₮</b> шилжүүлнэ үү:</p>
         <div class="bank-info">
           <div><span>Захиалгын дугаар:</span> <b id="orderNumberDisplay"></b></div>
           <div><span>Банк:</span> <b>Хаан банк</b></div>

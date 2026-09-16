@@ -114,6 +114,74 @@
 
   #adminLoading, #adminError { text-align: center; padding: 40px; color: var(--plum-soft); }
 
+  .promo-panel { margin-top: 20px; }
+  .btn-toggle-promo {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--plum);
+    background: var(--cream);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 18px;
+    cursor: pointer;
+  }
+  #promoPanelBody {
+    margin-top: 14px;
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    box-shadow: var(--shadow-soft);
+  }
+  .promo-create-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .promo-create-form input, .promo-create-form select {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--cream-2);
+    font-size: 13px;
+    background: var(--cream);
+    color: var(--plum);
+  }
+  .promo-create-form input[type="text"] { flex: 1; min-width: 140px; }
+  .btn-promo-create {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 13px;
+    color: white;
+    background: var(--sage);
+    border: none;
+    border-radius: 999px;
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+  .promo-list { display: flex; flex-direction: column; gap: 8px; }
+  .promo-row-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .promo-row-item b { color: var(--coral); font-family: var(--font-display); }
+  .btn-promo-delete {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 11px;
+    color: white;
+    background: #e8574a;
+    border: none;
+    border-radius: 999px;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+
   .pattern-card {
     margin-top: 20px;
     padding: 16px;
@@ -276,6 +344,24 @@
       <h1>Захиалгууд</h1>
     </section>
 
+    <div class="promo-panel">
+      <button type="button" class="btn-toggle-promo" id="togglePromoBtn">🏷 Промо кодууд</button>
+      <div id="promoPanelBody" hidden>
+        <form id="promoCreateForm" class="promo-create-form">
+          <input type="text" id="promoCodeField" placeholder="КОД (жишээ: WELCOME10)" required maxlength="30" style="text-transform:uppercase;" />
+          <select id="promoTypeField">
+            <option value="percent">%</option>
+            <option value="fixed">₮</option>
+          </select>
+          <input type="number" id="promoValueField" placeholder="Хэмжээ" required min="1" />
+          <input type="number" id="promoLimitField" placeholder="Ашиглах тоо (заавал биш)" min="1" />
+          <input type="date" id="promoExpiryField" title="Дуусах огноо (заавал биш)" />
+          <button type="submit" class="btn-promo-create">+ Нэмэх</button>
+        </form>
+        <div id="promoListContainer" class="promo-list"></div>
+      </div>
+    </div>
+
     <div id="adminLoading">Ачааллаж байна…</div>
     <div id="adminError" hidden></div>
 
@@ -297,6 +383,15 @@ const adminLoading = document.getElementById("adminLoading");
 const adminError = document.getElementById("adminError");
 const orderList = document.getElementById("orderList");
 const orderDetail = document.getElementById("orderDetail");
+const togglePromoBtn = document.getElementById("togglePromoBtn");
+const promoPanelBody = document.getElementById("promoPanelBody");
+const promoCreateForm = document.getElementById("promoCreateForm");
+const promoCodeField = document.getElementById("promoCodeField");
+const promoTypeField = document.getElementById("promoTypeField");
+const promoValueField = document.getElementById("promoValueField");
+const promoLimitField = document.getElementById("promoLimitField");
+const promoExpiryField = document.getElementById("promoExpiryField");
+const promoListContainer = document.getElementById("promoListContainer");
 
 let adminPin = sessionStorage.getItem("adminPin") || "";
 
@@ -489,7 +584,7 @@ function renderOrderDetail(order) {
       <div><b>Утас:</b> ${escapeHtml(order.contactPhone)}</div>
       <div><b>Хаяг:</b> ${escapeHtml(order.contactAddress || "—")}</div>
       <div><b>Тэмдэглэл:</b> ${escapeHtml(order.contactNote || "—")}</div>
-      <div><b>Үнэ:</b> ${Number(order.price || 0).toLocaleString()}₮</div>
+      <div><b>Үнэ:</b> ${Number(order.price || 0).toLocaleString()}₮${order.promoCode ? ` <span style="color:var(--sage);">(промо: ${escapeHtml(order.promoCode)}, -${Number(order.discountAmount || 0).toLocaleString()}₮)</span>` : ""}</div>
     </div>
 
     <div class="pattern-card">
@@ -809,6 +904,80 @@ async function generateAllRemaining(order) {
   progress.textContent = "✨ Бүх хуудас бэлэн боллоо";
   allBtn.disabled = false;
   refreshList();
+}
+
+// ---------- промо код удирдлага ----------
+
+togglePromoBtn.addEventListener("click", () => {
+  promoPanelBody.hidden = !promoPanelBody.hidden;
+  if (!promoPanelBody.hidden) loadPromos();
+});
+
+promoCreateForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const code = promoCodeField.value.trim().toUpperCase();
+  const discountType = promoTypeField.value;
+  const discountValue = Number(promoValueField.value);
+  const usageLimit = promoLimitField.value ? Number(promoLimitField.value) : null;
+  const expiresAt = promoExpiryField.value ? new Date(promoExpiryField.value).toISOString() : null;
+
+  if (!code || !discountValue) return;
+
+  try {
+    const res = await adminFetch("/.netlify/functions/create-promo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, discountType, discountValue, usageLimit, expiresAt }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Алдаа гарлаа.");
+
+    promoCreateForm.reset();
+    loadPromos();
+  } catch (err) {
+    alert(`Алдаа: ${err.message}`);
+  }
+});
+
+async function loadPromos() {
+  promoListContainer.innerHTML = "Ачааллаж байна…";
+  try {
+    const res = await adminFetch("/.netlify/functions/list-promos");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Алдаа гарлаа.");
+    renderPromoList(data.items);
+  } catch (err) {
+    promoListContainer.innerHTML = `<p>Алдаа: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderPromoList(items) {
+  promoListContainer.innerHTML = "";
+  if (!items || items.length === 0) {
+    promoListContainer.innerHTML = "<p style='font-size:13px;color:var(--plum-soft);'>Промо код алга байна.</p>";
+    return;
+  }
+  items.forEach((p) => {
+    const row = document.createElement("div");
+    row.className = "promo-row-item";
+    const discountLabel = p.discountType === "percent" ? `${p.discountValue}%` : `${p.discountValue.toLocaleString()}₮`;
+    const usageLabel = p.usageLimit ? `${p.usageCount || 0}/${p.usageLimit}` : `${p.usageCount || 0}/∞`;
+    const expiryLabel = p.expiresAt ? new Date(p.expiresAt).toLocaleDateString("mn-MN") : "хугацаагүй";
+    row.innerHTML = `
+      <span><b>${escapeHtml(p.code)}</b> — ${discountLabel} · ашигласан: ${usageLabel} · ${expiryLabel}</span>
+      <button class="btn-promo-delete" data-code="${escapeHtml(p.code)}">Устгах</button>
+    `;
+    row.querySelector(".btn-promo-delete").addEventListener("click", async () => {
+      if (!confirm(`"${p.code}" промо кодыг устгах уу?`)) return;
+      await adminFetch("/.netlify/functions/delete-promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: p.code }),
+      });
+      loadPromos();
+    });
+    promoListContainer.appendChild(row);
+  });
 }
 
 async function refreshList() {

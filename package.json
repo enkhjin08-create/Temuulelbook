@@ -7,7 +7,7 @@
     "dev": "netlify dev"
   },
   "dependencies": {
-    "@netlify/blobs": "^10.7.9",
-    "jimp": "^0.22.12"
+    "@netlify/blobs": "^10.7.12",
+    "jimp": "^1.6.1"
   }
 }

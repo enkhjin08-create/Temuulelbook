@@ -14,8 +14,9 @@ const { checkSession } = require("./_auth");
 const { sendEmail } = require("./_email");
 const { resetRateLimit } = require("./_rate-limit");
 const { saveOrderImage } = require("./_order-images");
+const { BASE_PRICE, getPromoStore, normalizeCode, computeFinalPrice, validatePromo } = require("./_promo");
 
-const PRICE = 120000;
+const PRICE = BASE_PRICE;
 const ADMIN_NOTIFY_EMAIL = "info.zuvhuntuund@gmail.com";
 const BANK = {
   bankName: "Хаан банк",
@@ -63,6 +64,7 @@ exports.handler = async (event) => {
   const {
     childName, gender, age, interests, storyTitle, storyPages,
     photoBase64, firstPageImageBase64, contactPhone, contactAddress, contactNote,
+    promoCode,
   } = body;
 
   if (!childName || typeof childName !== "string") {
@@ -85,6 +87,24 @@ exports.handler = async (event) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const orderNumber = generateOrderNumber();
     const now = new Date().toISOString();
+
+    // Промо кодыг серверт дахин баталгаажуулна (client талын мэдээлэлд итгэхгүй)
+    let finalPrice = PRICE;
+    let appliedPromoCode = "";
+    let discountAmount = 0;
+    let promoRecord = null;
+
+    if (promoCode) {
+      const promoResult = await validatePromo(promoCode);
+      if (!promoResult.ok) {
+        return respond(400, { error: promoResult.error });
+      }
+      const priceInfo = computeFinalPrice(promoResult.promo, PRICE);
+      finalPrice = priceInfo.finalPrice;
+      discountAmount = priceInfo.discountAmount;
+      appliedPromoCode = promoResult.promo.code;
+      promoRecord = promoResult.promo;
+    }
 
     // Зургуудыг захиалгын JSON дотор шууд хадгалахгүй, тусад нь Blobs-д
     // хадгалж, зөвхөн жижиг "key" л order-д үлдээнэ (6MB хариултын
@@ -116,7 +136,10 @@ exports.handler = async (event) => {
       contactAddress,
       contactNote: contactNote || "",
       status: "new",
-      price: PRICE,
+      price: finalPrice,
+      basePrice: PRICE,
+      discountAmount,
+      promoCode: appliedPromoCode,
       createdAt: now,
       updatedAt: now,
     };
@@ -134,9 +157,21 @@ exports.handler = async (event) => {
         pageCount: 1,
         contactPhone,
         contactAddress,
-        price: PRICE,
+        price: finalPrice,
+        promoCode: appliedPromoCode,
       },
     });
+
+    // Промо код ашигласан бол хэрэглэсэн тоог нэмэгдүүлнэ
+    if (promoRecord) {
+      try {
+        const promoStore = getPromoStore();
+        promoRecord.usageCount = (promoRecord.usageCount || 0) + 1;
+        await promoStore.set(promoRecord.code, JSON.stringify(promoRecord));
+      } catch (promoErr) {
+        console.error("Promo usage increment failed:", promoErr);
+      }
+    }
 
     // Имэйл илгээх (алдаа гарвал ч захиалгыг тасалдуулахгүй)
     sendEmail({
@@ -152,7 +187,7 @@ exports.handler = async (event) => {
         <p><b>Хаяг:</b> ${escapeHtml(contactAddress)}</p>
         <p><b>Тэмдэглэл:</b> ${escapeHtml(contactNote || "—")}</p>
         <p><b>Захиалагчийн и-мэйл:</b> ${escapeHtml(session.email)}</p>
-        <p><b>Үнэ:</b> ${PRICE.toLocaleString()}₮</p>
+        <p><b>Үнэ:</b> ${finalPrice.toLocaleString()}₮${appliedPromoCode ? ` (промо: ${escapeHtml(appliedPromoCode)}, хямдрал: ${discountAmount.toLocaleString()}₮)` : ""}</p>
         <p><a href="https://temuulelbook.netlify.app/admin.html">Admin хуудсаар нээж харах</a></p>
       `,
     }).catch(() => {});
@@ -164,7 +199,7 @@ exports.handler = async (event) => {
         <h2>Баярлалаа, захиалга бүртгэгдлээ! 🎉</h2>
         <p><b>${escapeHtml(childName)}</b>-ийн үлгэрийг бид одоо бэлдэж эхэлнэ.</p>
         <p><b>Захиалгын дугаар:</b> ${escapeHtml(orderNumber)}</p>
-        <p><b>Үнэ:</b> ${PRICE.toLocaleString()}₮</p>
+        <p><b>Үнэ:</b> ${finalPrice.toLocaleString()}₮${appliedPromoCode ? ` <span style="color:#8FAE8B;">(промо код: ${escapeHtml(appliedPromoCode)}, -${discountAmount.toLocaleString()}₮)</span>` : ""}</p>
         <p>Дараах дансанд шилжүүлгээ хийхдээ <b>гүйлгээний утга дээр захиалгын дугаараа (${escapeHtml(orderNumber)}) бичнэ үү</b>:</p>
         <ul>
           <li><b>Банк:</b> ${BANK.bankName}</li>
@@ -180,7 +215,7 @@ exports.handler = async (event) => {
     await resetRateLimit(event, "generate-story");
     await resetRateLimit(event, "generate-character");
 
-    return respond(200, { id, orderNumber, bank: BANK });
+    return respond(200, { id, orderNumber, bank: BANK, finalPrice, discountAmount });
   } catch (err) {
     console.error("create-order error:", err);
     return respond(500, {
