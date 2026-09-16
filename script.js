@@ -200,6 +200,10 @@ function generateRequestId() {
 // нь профайл зураг болгож) ашиглахаас сэргийлж, дэлгэц дээр харагдах хувилбар
 // дээр л watermark хийнэ. Захиалгад илгээгдэх (firstPageImageBase64) хувилбар
 // цэвэр хэвээр үлддэг тул захиалсны дараа таны бэлдэх номонд watermark орохгүй.
+bookMockup.addEventListener("click", () => {
+  bookMockup.classList.toggle("book-open");
+});
+
 function addWatermark(dataUrl, callback) {
   const img = new Image();
   img.onload = () => {
@@ -581,11 +585,7 @@ async function generateFirstPage() {
     bookMockupText.textContent = storyPages[0].caption || "";
 
     bookMockupArea.hidden = false;
-    bookMockup.classList.remove("book-open");
-    // Хавтас эхлээд хаалттай харагдаад, богино азгаас дараа өөрөө нээгдэнэ
-    requestAnimationFrame(() => {
-      setTimeout(() => bookMockup.classList.add("book-open"), 600);
-    });
+    bookMockup.classList.remove("book-open"); // хаалттай төлөвөөс шинээр эхэлнэ — хэрэглэгч дарахад нээгдэнэ
 
     setState("result");
     orderCtaArea.hidden = false;

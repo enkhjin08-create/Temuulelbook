@@ -845,6 +845,10 @@ input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus,
   width: 280px;
   aspect-ratio: 4 / 3;
   perspective: 1400px;
+  cursor: pointer;
+}
+.book-mockup:active {
+  transform: scale(0.98);
 }
 
 /* Нээгдэхэд харагдах дотоод хуудас (текст + зураг) */
@@ -905,6 +909,19 @@ input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus,
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.book-tap-hint {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255,255,255,0.9);
+  color: var(--plum);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 10.5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
 }
 .book-title-overlay {
   position: absolute;
