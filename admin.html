@@ -1046,6 +1046,11 @@ async function generatePageAt(order, pageIndex) {
 
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+  const allPageCaptions = order.storyPages.map((sp, i) => {
+    const ta = document.getElementById(`pageText-${i}`);
+    return ta ? ta.value.trim() : sp.caption;
+  });
+
   try {
     const genData = await fetchJsonWithRetry(
       "/.netlify/functions/generate-character",
@@ -1059,6 +1064,7 @@ async function generatePageAt(order, pageIndex) {
           pageIndex,
           totalPages: order.storyPages.length,
           sceneDescription: text,
+          allPageCaptions,
           requestId,
         }),
       },

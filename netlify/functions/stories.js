@@ -24,7 +24,7 @@ frame — the person will place it into a book layout themselves afterward.
 
 // pageIndex === 0 үед захиалагчийн бодит зургийг reference болгоно.
 // pageIndex > 0 үед өмнөх generate хийсэн зургийг reference болгоно (тогтвортой дүр).
-function buildPagePrompt({ childName, gender, sceneDescription, pageIndex, totalPages }) {
+function buildPagePrompt({ childName, gender, sceneDescription, pageIndex, totalPages, allPageCaptions }) {
   const isFirstPage = pageIndex === 0;
   const pageNum = pageIndex + 1;
   const genderEn = gender === "хүү" ? "boy" : "girl";
@@ -57,6 +57,8 @@ identical across all ${totalPages} pages of this book.
 `.trim();
   }
 
+  const storyContextBlock = buildStoryContextBlock(allPageCaptions, pageIndex);
+
   return `
 You are illustrating page ${pageNum} of ${totalPages} of the same personalized
 children's picture book featuring ${childName} (a ${genderEn}), continuing
@@ -67,14 +69,46 @@ and any companion character(s), already established in a Ghibli-inspired
 illustration style. Keep the child's face, hairstyle, skin tone, and outfit
 IDENTICAL to the reference image — do not redesign or change them in any way.
 Keep any companion character's design identical too.
+${storyContextBlock}
+Scene for THIS page (page ${pageNum}): ${sceneDescription}
 
-Scene for this page: ${sceneDescription}
+CRITICAL — narrative continuity: use the full story above to understand what is
+literally happening versus what is imaginative/pretend play. If an earlier page
+establishes something as make-believe (e.g. a blanket fort standing in for a
+"cave", a cardboard box standing in for a "spaceship", a backyard standing in
+for a "jungle"), keep drawing that same real-world object/setting on later pages
+that reference it — do NOT suddenly render it as a literal, realistic version of
+the pretend thing. Only draw a literal/real version of something if the story
+context actually places the character in that real setting. Also keep any object,
+item, or character introduced in an earlier page (that reappears in this page's
+scene) visually consistent with how it was first described.
 
 ${STYLE_GUIDE}
 
 The final image should feel like page ${pageNum} of the same printed children's
-book — same characters, same style, a new moment in the story.
+book — same characters, same style, and a scene that visually makes sense as the
+direct continuation of the story so far.
 `.trim();
+}
+
+// Бусад бүх хуудасны (одоогийн хуудсыг эс тооцвол) текстийг context болгож
+// нэгтгэнэ — ингэснээр AI өмнөх/дараагийн хуудсуудын логик уялдааг ойлгоно.
+function buildStoryContextBlock(allPageCaptions, currentPageIndex) {
+  if (!Array.isArray(allPageCaptions) || allPageCaptions.length === 0) return "";
+
+  const lines = allPageCaptions
+    .map((caption, i) => {
+      const marker = i === currentPageIndex ? " [ЭНЭ ХУУДАС]" : "";
+      return `Page ${i + 1}${marker}: ${caption}`;
+    })
+    .join("\n");
+
+  return `
+Full story so far, for narrative context (do NOT illustrate every page below —
+only page ${currentPageIndex + 1}, but use the rest to understand continuity,
+objects, settings, and what is real vs. pretend):
+${lines}
+`;
 }
 
 module.exports = { STYLE_GUIDE, buildPagePrompt, buildPatternPrompt, buildBackpagePrompt, buildBackgroundPrompt };
