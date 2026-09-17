@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Зөвхөн Түүнд Kids Book — Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&display=swap">
@@ -224,6 +225,32 @@
     cursor: pointer;
   }
   .btn-generate-all:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-download-all {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--plum);
+    background: var(--cream-2);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 18px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  .btn-download-all:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-restart-pages {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    color: white;
+    background: #e8574a;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 18px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  .btn-restart-pages:disabled { opacity: 0.6; cursor: not-allowed; }
   .generate-all-progress {
     margin: 10px 0 0;
     font-size: 13px;
@@ -606,6 +633,10 @@ function renderOrderDetail(order) {
     <div class="generate-all-area">
       <button type="button" class="btn-generate-all" id="generateAllBtn">✨ Бүх үлдсэн хуудсыг автоматаар зурах</button>
       <p class="generate-all-progress" id="generateAllProgress"></p>
+      <button type="button" class="btn-download-all" id="downloadAllBtn">⬇ Бүх зургийг татах (ZIP)</button>
+      <p class="generate-all-progress" id="downloadAllProgress"></p>
+      <button type="button" class="btn-restart-pages" id="restartPagesBtn">↺ Бусад хуудсыг дахин эхлэх</button>
+      <p class="generate-all-progress" id="restartPagesProgress"></p>
     </div>
 
     <div class="page-edit-list" id="orderPagesList"></div>
@@ -668,6 +699,8 @@ function renderOrderDetail(order) {
   });
 
   document.getElementById("generateAllBtn").addEventListener("click", () => generateAllRemaining(order));
+  document.getElementById("downloadAllBtn").addEventListener("click", () => downloadAllImages(order));
+  document.getElementById("restartPagesBtn").addEventListener("click", () => restartOtherPages(order));
 }
 
 // ---------- хавтасны хээ ----------
@@ -771,12 +804,12 @@ function renderPagesList(order) {
       imgWrap.appendChild(img);
     }
 
-    // Reference зураггүй бол (өмнөх хуудас хараахан зураагдаагүй) товчийг идэвхгүй болгоно
-    const canGenerate = i === 0 ? !!order.originalPhotoKey : order.generatedPages.some((p) => p.pageIndex === i - 1);
+    // Reference зураггүй бол (1-р хуудас хараахан зураагдаагүй) товчийг идэвхгүй болгоно
+    const canGenerate = i === 0 ? !!order.originalPhotoKey : order.generatedPages.some((p) => p.pageIndex === 0);
     const btn = document.getElementById(`pageBtn-${i}`);
     if (!canGenerate) {
       btn.disabled = true;
-      document.getElementById(`pageStatus-${i}`).textContent = "Эхлээд өмнөх хуудсыг зурна уу";
+      document.getElementById(`pageStatus-${i}`).textContent = "Эхлээд 1-р хуудсыг зурна уу";
     } else {
       btn.addEventListener("click", () => generatePageAt(order, i));
     }
@@ -802,9 +835,14 @@ async function generatePageAt(order, pageIndex) {
       if (!order.originalPhotoKey) throw new Error("Эх зураг олдсонгүй.");
       referenceImageBase64 = await fetchOrderImageDataUrl(order.originalPhotoKey);
     } else {
-      const prevPage = order.generatedPages.find((p) => p.pageIndex === pageIndex - 1);
-      if (!prevPage) throw new Error(`Эхлээд ${pageIndex}-р хуудсыг зурна уу.`);
-      referenceImageBase64 = await fetchOrderImageDataUrl(prevPage.imageKey);
+      // Дараалсан хуудас бүр өмнөх хуудсаа reference болгодог байсан тул, олон
+      // хуудас дараалан зурахад алдаа хуримтлагдаж (drift) дүр аажмаар
+      // өөрчлөгддөг асуудалтай байсан. Үүнийг засахын тулд, БҮХ хуудас
+      // ЯГ 1-р хуудасны (тогтвортой, гараар баталгаажуулсан дүр) зургийг л
+      // reference болгодог болгов — ингэснээр дүр хэзээ ч холдохгүй.
+      const firstPage = order.generatedPages.find((p) => p.pageIndex === 0);
+      if (!firstPage) throw new Error("Эхлээд 1-р хуудсыг зурна уу.");
+      referenceImageBase64 = await fetchOrderImageDataUrl(firstPage.imageKey);
     }
   } catch (err) {
     status.textContent = `Алдаа: ${err.message}`;
@@ -862,12 +900,19 @@ async function generatePageAt(order, pageIndex) {
     btn.textContent = "🔄 Дахин зурах";
     btn.disabled = false;
 
-    const nextBtn = document.getElementById(`pageBtn-${pageIndex + 1}`);
-    const nextStatus = document.getElementById(`pageStatus-${pageIndex + 1}`);
-    if (nextBtn) {
-      nextBtn.disabled = false;
-      nextBtn.addEventListener("click", () => generatePageAt(order, pageIndex + 1));
-      if (nextStatus) nextStatus.textContent = "";
+    // 1-р хуудас амжилттай болмогц бүх бусад хуудсыг нэг дор идэвхжүүлнэ
+    // (учир нь эдгээр нь бүгд 1-р хуудсыг reference болгодог тул дараалан
+    // зурах шаардлагагүй)
+    if (pageIndex === 0) {
+      for (let j = 1; j < order.storyPages.length; j++) {
+        const otherBtn = document.getElementById(`pageBtn-${j}`);
+        const otherStatus = document.getElementById(`pageStatus-${j}`);
+        if (otherBtn && otherBtn.disabled) {
+          otherBtn.disabled = false;
+          otherBtn.addEventListener("click", () => generatePageAt(order, j));
+          if (otherStatus) otherStatus.textContent = "";
+        }
+      }
     }
 
     if (order.generatedPages.length >= order.storyPages.length) {
@@ -904,6 +949,93 @@ async function generateAllRemaining(order) {
   progress.textContent = "✨ Бүх хуудас бэлэн боллоо";
   allBtn.disabled = false;
   refreshList();
+}
+
+async function restartOtherPages(order) {
+  const confirmed = confirm(
+    "1-р хуудсыг эс тооцвол, бусад бүх зурагдсан хуудсыг устгаж, дахин эхлэх үү? Энэ үйлдлийг буцаах боломжгүй."
+  );
+  if (!confirmed) return;
+
+  const btn = document.getElementById("restartPagesBtn");
+  const progress = document.getElementById("restartPagesProgress");
+  btn.disabled = true;
+  btn.textContent = "Цэвэрлэж байна…";
+  progress.textContent = "";
+
+  try {
+    const res = await adminFetch("/.netlify/functions/reset-order-pages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: order.id }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Алдаа гарлаа.");
+
+    progress.textContent = "✓ Цэвэрлэгдлээ — доор хуудсуудаа дахин зураарай.";
+    openOrder(order.id);
+    refreshList();
+  } catch (err) {
+    progress.textContent = `Алдаа: ${err.message}`;
+    btn.disabled = false;
+    btn.textContent = "↺ Бусад хуудсыг дахин эхлэх";
+  }
+}
+
+async function downloadAllImages(order) {
+  const btn = document.getElementById("downloadAllBtn");
+  const progress = document.getElementById("downloadAllProgress");
+
+  if (!order.generatedPages || order.generatedPages.length === 0) {
+    progress.textContent = "Одоогоор татах зураг алга байна.";
+    return;
+  }
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = "Бэлдэж байна…";
+  progress.textContent = "";
+
+  try {
+    const zip = new JSZip();
+    const sortedPages = order.generatedPages.slice().sort((a, b) => a.pageIndex - b.pageIndex);
+
+    for (let i = 0; i < sortedPages.length; i++) {
+      const p = sortedPages[i];
+      progress.textContent = `${i + 1}/${sortedPages.length} зураг бэлдэж байна…`;
+
+      const res = await adminFetch(`/.netlify/functions/order-image?key=${encodeURIComponent(p.imageKey)}`);
+      if (!res.ok) continue;
+      const blob = await res.blob();
+
+      // Файлын нэр хуудасны дугаартай ижил байна (жишээ нь 01.jpg, 02.jpg...)
+      const pageNumber = String(p.pageIndex + 1).padStart(2, "0");
+      const ext = blob.type && blob.type.includes("png") ? "png" : "jpg";
+      zip.file(`${pageNumber}.${ext}`, blob);
+    }
+
+    progress.textContent = "ZIP файл үүсгэж байна…";
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+
+    const safeChildName = (order.childName || "order").replace(/[^a-zA-Zа-яА-ЯёЁ0-9]+/g, "_");
+    const filename = `${safeChildName}-${order.orderNumber || order.id}.zip`;
+
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    progress.textContent = "✓ Татагдлаа";
+  } catch (err) {
+    progress.textContent = `Алдаа: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 // ---------- промо код удирдлага ----------
