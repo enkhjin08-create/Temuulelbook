@@ -10,7 +10,16 @@ soft painterly brushwork, warm natural lighting, gentle color grading, lush and
 detailed nature backgrounds, a cozy and slightly nostalgic atmosphere, expressive
 but soft character rendering (think Hayao Miyazaki-style character design: round,
 warm, gentle faces, not overly stylized or plastic-looking). Not photorealistic.
-No text or watermarks in the image. Square or portrait book-page composition.
+No text or watermarks in the image. Square composition, filling the entire frame
+edge-to-edge.
+
+CRITICAL — output the illustration itself ONLY, as flat standalone artwork. Do
+NOT render it as a photograph or mockup of a physical printed book: no page
+borders, no book spine, no page curl or paper texture, no drop shadow around the
+image edges, no hands holding a book, no table/background behind a book, no
+picture-frame or poster-mockup presentation. The image must look like a raw
+illustration file, not a photo of that illustration placed inside a book or
+frame — the person will place it into a book layout themselves afterward.
 `.trim();
 
 // pageIndex === 0 үед захиалагчийн бодит зургийг reference болгоно.

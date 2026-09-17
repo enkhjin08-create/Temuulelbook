@@ -947,6 +947,12 @@ async function generateAllRemaining(order) {
   const progress = document.getElementById("generateAllProgress");
   allBtn.disabled = true;
 
+  // Хавтасны хээ хараахан зурагдаагүй бол эхлээд үүнийг зурна
+  if (!order.patternImageKey) {
+    progress.textContent = "Хавтасны хээ зурж байна…";
+    await generatePattern(order);
+  }
+
   for (let i = 0; i < order.storyPages.length; i++) {
     const already = order.generatedPages.some((p) => p.pageIndex === i);
     if (already) continue;
