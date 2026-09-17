@@ -352,6 +352,7 @@
 <header class="topbar">
   <div class="logo">Зөвхөн <span>Түүнд</span> <small>kids book · admin</small></div>
   <div style="display:flex; gap:10px; align-items:center;">
+    <span id="versionDisplay" style="font-size:11px; color:var(--plum-soft); font-family:var(--font-body);"></span>
     <a href="/gallery.html" class="topbar-badge" style="text-decoration:none;">🖼 Gallery</a>
     <a href="/" class="topbar-badge" style="text-decoration:none;">← Үндсэн хуудас</a>
   </div>
@@ -423,6 +424,18 @@ const promoListContainer = document.getElementById("promoListContainer");
 let adminPin = sessionStorage.getItem("adminPin") || "";
 
 const STATUS_LABELS = { new: "Шинэ", paid: "Төлсөн", completed: "Дууссан", cancelled: "Цуцалсан" };
+
+loadVersionInfo();
+
+async function loadVersionInfo() {
+  try {
+    const res = await fetch("/.netlify/functions/version");
+    const data = await res.json();
+    document.getElementById("versionDisplay").textContent = `${data.context}·${data.commit}`;
+  } catch (e) {
+    // хувилбарын мэдээлэл ачаалахгүй бол зүгээр л хоосон үлдээнэ
+  }
+}
 
 if (adminPin) {
   tryEnter(adminPin);
