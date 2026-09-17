@@ -429,9 +429,10 @@ loadVersionInfo();
 
 async function loadVersionInfo() {
   try {
-    const res = await fetch("/.netlify/functions/version");
+    const res = await fetch(`/version.json?_=${Date.now()}`);
     const data = await res.json();
     document.getElementById("versionDisplay").textContent = `${data.context}·${data.commit}`;
+    document.getElementById("versionDisplay").title = `Build: ${data.buildTime}`;
   } catch (e) {
     // хувилбарын мэдээлэл ачаалахгүй бол зүгээр л хоосон үлдээнэ
   }
