@@ -48,6 +48,8 @@ exports.handler = async (event) => {
         const keysToDelete = [];
         if (order.originalPhotoKey) keysToDelete.push(order.originalPhotoKey);
         if (order.patternImageKey) keysToDelete.push(order.patternImageKey);
+        if (order.backpageImageKey) keysToDelete.push(order.backpageImageKey);
+        if (order.backgroundImageKey) keysToDelete.push(order.backgroundImageKey);
         (order.generatedPages || []).forEach((p) => {
           if (p.imageKey) keysToDelete.push(p.imageKey);
         });

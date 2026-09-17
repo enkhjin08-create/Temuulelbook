@@ -77,7 +77,63 @@ book — same characters, same style, a new moment in the story.
 `.trim();
 }
 
-module.exports = { STYLE_GUIDE, buildPagePrompt, buildPatternPrompt };
+module.exports = { STYLE_GUIDE, buildPagePrompt, buildPatternPrompt, buildBackpagePrompt, buildBackgroundPrompt };
+
+// Номын АР ХАВТАС — эхний хуудасны яг тэр л орчин, өнгө, гэрэлтүүлэг, зурган
+// хэв маягтай, гэхдээ ХҮН/ДҮРГҮЙ (тухайн дүр хүрээнээс гарчихсан юм шиг).
+function buildBackpagePrompt({ childName, gender }) {
+  const genderEn = gender === "хүү" ? "boy" : "girl";
+
+  return `
+You are creating the BACK COVER illustration for a personalized children's
+picture book, to pair with the attached reference image (the book's front
+cover / first-page illustration).
+
+Redraw the EXACT SAME setting, background, environment, color palette,
+lighting, and art style as the reference image — but with NO characters, NO
+people, NO animals with faces, and NO ${genderEn} anywhere in the scene. Show
+only the empty background/setting, as if the character has simply stepped out
+of frame. Keep every other visual detail (location, objects, mood, time of
+day) identical to the reference.
+
+${STYLE_GUIDE}
+
+This is a back-cover illustration: calm, inviting, and visually consistent with
+the reference image's world, but with the scene left completely empty of any
+character.
+`.trim();
+}
+
+// Номын дотор ТЕКСТНИЙ АРД тавих зөөлөн дэвсгэр зураг — түүхийн сэдэвтэй
+// холбоотой, гэхдээ дүр/текст ороогүй, дээр нь текст тавихад тохиромжтой.
+function buildBackgroundPrompt({ storyTitle, interests, gender, backgroundDescription }) {
+  const genderEn = gender === "хүү" ? "boy" : "girl";
+
+  return `
+You are designing a soft background illustration to be placed BEHIND text
+inside a personalized children's picture book for a ${genderEn}. This is NOT a
+story page — it is a decorative background image that text will be overlaid
+on top of afterward.
+
+Book context: "${storyTitle}", themed around: ${interests}.
+
+Background description: ${backgroundDescription}
+
+Design requirements:
+- Soft, low-contrast, uncluttered composition with generous calm open space so
+  text stays easy to read once placed on top of this image
+- Thematically connected to the book's story/interests, but understated — this
+  supports the text, it must not compete with or overpower it
+- NO characters, NO faces, NO people, NO text or letters anywhere in the image
+- Gentle, warm, slightly muted color palette consistent with a cozy children's
+  book
+
+${STYLE_GUIDE}
+
+The final image should feel like a soft, story-appropriate page background
+that text can sit comfortably on top of — not a story scene itself.
+`.trim();
+}
 
 // Номоо нээнгүүт харагдах чимэглэлийн хээ (endpaper) — дүр, текст ороогүй,
 // зөвхөн түүхийн сэдэвтэй холбоотой жижиг дүрс/зүйлсээр давтагдсан хээ.

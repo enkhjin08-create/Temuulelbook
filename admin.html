@@ -311,6 +311,12 @@
     gap: 8px;
     min-width: 0;
   }
+  .page-edit-hint {
+    font-size: 12.5px;
+    color: var(--plum-soft);
+    margin: 0;
+    line-height: 1.4;
+  }
   .page-edit-textarea {
     width: 100%;
     font-family: var(--font-body);
@@ -649,6 +655,38 @@ function renderOrderDetail(order) {
       </div>
     </div>
 
+    <div class="pattern-card">
+      <h3 class="pattern-card-title">📖 Ар хавтас (1-р хуудасны орчин, дүргүйгээр)</h3>
+      <div class="pattern-card-body">
+        <div class="page-edit-image pattern-image" id="backpageImgWrap">
+          ${order.backpageImageKey ? "" : '<div class="page-edit-placeholder">Хараахан зураагүй</div>'}
+        </div>
+        <div class="page-edit-body">
+          <p class="page-edit-hint">1-р хуудасны зургийг reference болгож, яг тэр л орчинг дүргүйгээр дахин зурна. Эхлээд 1-р хуудсаа зурсан байх шаардлагатай.</p>
+          <div class="page-edit-actions">
+            <button class="btn-page-generate" id="backpageBtn">${order.backpageImageKey ? "🔄 Дахин зурах" : "Зурах"}</button>
+            <span class="page-edit-status" id="backpageStatus"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pattern-card">
+      <h3 class="pattern-card-title">🎨 Дэвсгэр зураг (текстний ард тавих)</h3>
+      <div class="pattern-card-body">
+        <div class="page-edit-image pattern-image" id="backgroundImgWrap">
+          ${order.backgroundImageKey ? "" : '<div class="page-edit-placeholder">Хараахан зураагүй</div>'}
+        </div>
+        <div class="page-edit-body">
+          <textarea class="page-edit-textarea" id="backgroundText" rows="3">${escapeHtml(order.backgroundDescription || `Номын түүхтэй холбоотой, зөөлөн, дээр нь текст тавихад тохиромжтой дэвсгэр зураг`)}</textarea>
+          <div class="page-edit-actions">
+            <button class="btn-page-generate" id="backgroundBtn">${order.backgroundImageKey ? "🔄 Дахин зурах" : "Зурах"}</button>
+            <span class="page-edit-status" id="backgroundStatus"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="generate-all-area">
       <button type="button" class="btn-generate-all" id="generateAllBtn">✨ Бүх үлдсэн хуудсыг автоматаар зурах</button>
       <p class="generate-all-progress" id="generateAllProgress"></p>
@@ -669,6 +707,8 @@ function renderOrderDetail(order) {
   }
 
   document.getElementById("patternBtn").addEventListener("click", () => generatePattern(order));
+  document.getElementById("backpageBtn").addEventListener("click", () => generateBackpage(order));
+  document.getElementById("backgroundBtn").addEventListener("click", () => generateBackground(order));
 
   renderPagesList(order);
 
@@ -772,6 +812,137 @@ async function generatePattern(order) {
 
     order.patternImageKey = `${order.id}:pattern`;
     order.patternDescription = description;
+
+    imgWrap.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = genData.imageBase64;
+    imgWrap.appendChild(img);
+
+    status.textContent = "✓ Зурагдлаа";
+    btn.textContent = "🔄 Дахин зурах";
+    btn.disabled = false;
+  } catch (err) {
+    status.textContent = `Алдаа: ${err.message}`;
+    btn.textContent = originalBtnText;
+    btn.disabled = false;
+  }
+}
+
+// ---------- ар хавтас ----------
+
+async function generateBackpage(order) {
+  const btn = document.getElementById("backpageBtn");
+  const status = document.getElementById("backpageStatus");
+  const imgWrap = document.getElementById("backpageImgWrap");
+
+  const firstPage = order.generatedPages.find((p) => p.pageIndex === 0);
+  if (!firstPage) {
+    status.textContent = "Эхлээд 1-р хуудсыг зурна уу.";
+    return;
+  }
+
+  const originalBtnText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Зурж байна…";
+  status.textContent = "";
+
+  const requestId = crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  try {
+    const referenceImageBase64 = await fetchOrderImageDataUrl(firstPage.imageKey);
+
+    const genData = await fetchJsonWithRetry(
+      "/.netlify/functions/generate-backpage",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-pin": adminPin },
+        body: JSON.stringify({
+          childName: order.childName,
+          gender: order.gender,
+          photoBase64: referenceImageBase64,
+          requestId,
+        }),
+      },
+      {
+        onRetry: (attempt, max) => {
+          btn.textContent = `Дахин оролдож байна… (${attempt}/${max})`;
+        },
+      }
+    );
+
+    await adminFetch("/.netlify/functions/set-order-backpage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: order.id, imageBase64: genData.imageBase64 }),
+    });
+
+    order.backpageImageKey = `${order.id}:backpage`;
+
+    imgWrap.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = genData.imageBase64;
+    imgWrap.appendChild(img);
+
+    status.textContent = "✓ Зурагдлаа";
+    btn.textContent = "🔄 Дахин зурах";
+    btn.disabled = false;
+  } catch (err) {
+    status.textContent = `Алдаа: ${err.message}`;
+    btn.textContent = originalBtnText;
+    btn.disabled = false;
+  }
+}
+
+// ---------- дэвсгэр зураг ----------
+
+async function generateBackground(order) {
+  const textarea = document.getElementById("backgroundText");
+  const btn = document.getElementById("backgroundBtn");
+  const status = document.getElementById("backgroundStatus");
+  const imgWrap = document.getElementById("backgroundImgWrap");
+
+  const description = textarea.value.trim();
+  if (!description) {
+    alert("Дэвсгэрийн тайлбар хоосон байна.");
+    return;
+  }
+
+  const originalBtnText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Зурж байна…";
+  status.textContent = "";
+
+  const requestId = crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  try {
+    const genData = await fetchJsonWithRetry(
+      "/.netlify/functions/generate-background",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-pin": adminPin },
+        body: JSON.stringify({
+          storyTitle: order.storyTitle,
+          interests: order.interests,
+          gender: order.gender,
+          backgroundDescription: description,
+          requestId,
+        }),
+      },
+      {
+        onRetry: (attempt, max) => {
+          btn.textContent = `Дахин оролдож байна… (${attempt}/${max})`;
+        },
+      }
+    );
+
+    await adminFetch("/.netlify/functions/set-order-background", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: order.id, imageBase64: genData.imageBase64, backgroundDescription: description }),
+    });
+
+    order.backgroundImageKey = `${order.id}:background`;
+    order.backgroundDescription = description;
 
     imgWrap.innerHTML = "";
     const img = document.createElement("img");
@@ -972,6 +1143,18 @@ async function generateAllRemaining(order) {
   }
 
   progress.textContent = "✨ Бүх хуудас бэлэн боллоо";
+
+  // 1-р хуудас бэлэн болсон тул ар хавтас, дэвсгэр зургийг мөн зурна
+  if (!order.backpageImageKey) {
+    progress.textContent = "Ар хавтас зурж байна…";
+    await generateBackpage(order);
+  }
+  if (!order.backgroundImageKey) {
+    progress.textContent = "Дэвсгэр зураг зурж байна…";
+    await generateBackground(order);
+  }
+
+  progress.textContent = "✨ Бүх зураг бэлэн боллоо";
   allBtn.disabled = false;
   refreshList();
 }
@@ -1047,6 +1230,28 @@ async function downloadAllImages(order) {
         const patternBlob = await patternRes.blob();
         const patternExt = patternBlob.type && patternBlob.type.includes("png") ? "png" : "jpg";
         zip.file(`pattern.${patternExt}`, patternBlob);
+      }
+    }
+
+    // Ар хавтас байвал "backpage" нэртэйгээр нэмнэ
+    if (order.backpageImageKey) {
+      progress.textContent = "Ар хавтас бэлдэж байна…";
+      const backpageRes = await adminFetch(`/.netlify/functions/order-image?key=${encodeURIComponent(order.backpageImageKey)}&_=${Date.now()}`);
+      if (backpageRes.ok) {
+        const backpageBlob = await backpageRes.blob();
+        const backpageExt = backpageBlob.type && backpageBlob.type.includes("png") ? "png" : "jpg";
+        zip.file(`backpage.${backpageExt}`, backpageBlob);
+      }
+    }
+
+    // Дэвсгэр зураг байвал "background" нэртэйгээр нэмнэ
+    if (order.backgroundImageKey) {
+      progress.textContent = "Дэвсгэр зураг бэлдэж байна…";
+      const backgroundRes = await adminFetch(`/.netlify/functions/order-image?key=${encodeURIComponent(order.backgroundImageKey)}&_=${Date.now()}`);
+      if (backgroundRes.ok) {
+        const backgroundBlob = await backgroundRes.blob();
+        const backgroundExt = backgroundBlob.type && backgroundBlob.type.includes("png") ? "png" : "jpg";
+        zip.file(`background.${backgroundExt}`, backgroundBlob);
       }
     }
 
