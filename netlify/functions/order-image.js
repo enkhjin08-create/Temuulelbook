@@ -43,7 +43,7 @@ exports.handler = async (event) => {
       statusCode: 200,
       headers: {
         "Content-Type": mimeType,
-        "Cache-Control": "private, max-age=31536000, immutable",
+        "Cache-Control": "private, no-store, must-revalidate",
       },
       body: data,
       isBase64Encoded: true,

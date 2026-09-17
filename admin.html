@@ -480,7 +480,7 @@ async function loadOrderImageInto(imgEl, key) {
 }
 
 async function fetchOrderImageDataUrl(key) {
-  const res = await adminFetch(`/.netlify/functions/order-image?key=${encodeURIComponent(key)}`);
+  const res = await adminFetch(`/.netlify/functions/order-image?key=${encodeURIComponent(key)}&_=${Date.now()}`);
   if (!res.ok) throw new Error(`Зураг татахад алдаа гарлаа (${res.status})`);
   const blob = await res.blob();
   return new Promise((resolve, reject) => {
@@ -1004,7 +1004,7 @@ async function downloadAllImages(order) {
       const p = sortedPages[i];
       progress.textContent = `${i + 1}/${sortedPages.length} зураг бэлдэж байна…`;
 
-      const res = await adminFetch(`/.netlify/functions/order-image?key=${encodeURIComponent(p.imageKey)}`);
+      const res = await adminFetch(`/.netlify/functions/order-image?key=${encodeURIComponent(p.imageKey)}&_=${Date.now()}`);
       if (!res.ok) continue;
       const blob = await res.blob();
 
@@ -1012,6 +1012,17 @@ async function downloadAllImages(order) {
       const pageNumber = String(p.pageIndex + 1).padStart(2, "0");
       const ext = blob.type && blob.type.includes("png") ? "png" : "jpg";
       zip.file(`${pageNumber}.${ext}`, blob);
+    }
+
+    // Хавтасны хээ байвал "pattern" нэртэйгээр нэмнэ
+    if (order.patternImageKey) {
+      progress.textContent = "Хавтасны хээ бэлдэж байна…";
+      const patternRes = await adminFetch(`/.netlify/functions/order-image?key=${encodeURIComponent(order.patternImageKey)}&_=${Date.now()}`);
+      if (patternRes.ok) {
+        const patternBlob = await patternRes.blob();
+        const patternExt = patternBlob.type && patternBlob.type.includes("png") ? "png" : "jpg";
+        zip.file(`pattern.${patternExt}`, patternBlob);
+      }
     }
 
     progress.textContent = "ZIP файл үүсгэж байна…";
