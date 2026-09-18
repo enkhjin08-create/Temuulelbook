@@ -162,38 +162,38 @@
   }
   .promo-list { display: flex; flex-direction: column; gap: 8px; }
   .imposition-sheet {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
     background: var(--cream);
     border-radius: 8px;
     padding: 10px 14px;
     margin-bottom: 8px;
     font-size: 13px;
     color: var(--plum);
+  }
+  .imposition-sheet > b {
+    display: block;
+    font-family: var(--font-display);
+    color: var(--coral);
+    margin-bottom: 6px;
+  }
+  .imposition-side {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     cursor: pointer;
+    padding: 2px 0;
   }
   .imposition-checkbox {
     flex: 0 0 auto;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     margin-top: 2px;
     accent-color: var(--sage);
     cursor: pointer;
   }
-  .imposition-sheet-text { flex: 1; }
-  .imposition-sheet-text b {
-    display: block;
-    font-family: var(--font-display);
-    color: var(--coral);
-    margin-bottom: 4px;
-  }
-  .imposition-sheet.checked {
-    background: #e3ecdf;
-    opacity: 0.65;
-  }
-  .imposition-sheet.checked .imposition-sheet-text {
+  .imposition-checkbox:checked ~ span {
     text-decoration: line-through;
+    color: var(--plum-soft);
+    opacity: 0.7;
   }
   .btn-imposition-reset {
     font-family: var(--font-body);
@@ -457,53 +457,43 @@
     <div class="promo-panel">
       <button type="button" class="btn-toggle-promo" id="toggleImpositionBtn">🖨 Хэвлэлийн зохион байгуулалт (10 хуудас)</button>
       <div id="impositionPanelBody" hidden>
-        <p class="page-edit-hint" style="margin-bottom:14px;">10 хуудастай номыг гараар атираад холбоход, цаас бүрийг ямар дараалалтай хэвлэхийг харуулна. Схем нь бүх 10 хуудастай захиалгад ижил хэвээр байна. Хэвлэсэн цаасаа чагтлаж явна уу.</p>
+        <p class="page-edit-hint" style="margin-bottom:14px;">10 хуудастай номыг гараар атираад холбоход, цаас бүрийг ямар дараалалтай хэвлэхийг харуулна. Схем нь бүх 10 хуудастай захиалгад ижил хэвээр байна. Хэвлэсэн тал бүрээ чагтлаж явна уу.</p>
 
         <button type="button" class="btn-imposition-reset" id="impositionResetBtn">↺ Бүгдийг цэвэрлэх</button>
 
         <h4 style="font-family:var(--font-display); font-size:14px; color:var(--plum); margin:12px 0 6px;">Бүлэг 1 (3 цаас)</h4>
-        <label class="imposition-sheet">
-          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-1" />
-          <div class="imposition-sheet-text">
-            <b>Цаас 1</b>
-            <div>Урд тал: 6-р хуудас текст | Нүүр хуудас</div>
-            <div>Арын тал: 1-р хуудас текст | 5-р хуудас зураг</div>
-          </div>
-        </label>
-        <label class="imposition-sheet">
-          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-2" />
-          <div class="imposition-sheet-text">
-            <b>Цаас 2</b>
-            <div>Урд тал: 5-р хуудас текст | 1-р хуудас зураг</div>
-            <div>Арын тал: 2-р хуудас текст | 4-р хуудас зураг</div>
-          </div>
-        </label>
-        <label class="imposition-sheet">
-          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-3" />
-          <div class="imposition-sheet-text">
-            <b>Цаас 3</b>
-            <div>Урд тал: 4-р хуудас текст | 2-р хуудас зураг</div>
-            <div>Арын тал: 3-р хуудас текст | 3-р хуудас зураг</div>
-          </div>
-        </label>
+
+        <div class="imposition-sheet">
+          <b>Цаас 1</b>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-1-front" /><span>Урд тал: 6-р хуудас текст | Нүүр хуудас</span></label>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-1-back" /><span>Арын тал: 1-р хуудас текст | 5-р хуудас зураг</span></label>
+        </div>
+
+        <div class="imposition-sheet">
+          <b>Цаас 2</b>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-2-front" /><span>Урд тал: 5-р хуудас текст | 1-р хуудас зураг</span></label>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-2-back" /><span>Арын тал: 2-р хуудас текст | 4-р хуудас зураг</span></label>
+        </div>
+
+        <div class="imposition-sheet">
+          <b>Цаас 3</b>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-3-front" /><span>Урд тал: 4-р хуудас текст | 2-р хуудас зураг</span></label>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-3-back" /><span>Арын тал: 3-р хуудас текст | 3-р хуудас зураг</span></label>
+        </div>
 
         <h4 style="font-family:var(--font-display); font-size:14px; color:var(--plum); margin:16px 0 6px;">Бүлэг 2 (2 цаас)</h4>
-        <label class="imposition-sheet">
-          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s2-1" />
-          <div class="imposition-sheet-text">
-            <b>Цаас 1</b>
-            <div>Урд тал: 10-р хуудас (текст+зураг) | 6-р хуудас зураг</div>
-            <div>Арын тал: 7-р хуудас текст | 9-р хуудас зураг</div>
-          </div>
-        </label>
-        <label class="imposition-sheet">
-          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s2-2" />
-          <div class="imposition-sheet-text">
-            <b>Цаас 2</b>
-            <div>Урд тал: 9-р хуудас текст | 7-р хуудас зураг</div>
-            <div>Арын тал: 8-р хуудас текст | 8-р хуудас зураг</div>
-          </div>
-        </label>
+
+        <div class="imposition-sheet">
+          <b>Цаас 1</b>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s2-1-front" /><span>Урд тал: 10-р хуудас (текст+зураг) | 6-р хуудас зураг</span></label>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s2-1-back" /><span>Арын тал: 7-р хуудас текст | 9-р хуудас зураг</span></label>
+        </div>
+
+        <div class="imposition-sheet">
+          <b>Цаас 2</b>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s2-2-front" /><span>Урд тал: 9-р хуудас текст | 7-р хуудас зураг</span></label>
+          <label class="imposition-side"><input type="checkbox" class="imposition-checkbox" data-sheet-id="s2-2-back" /><span>Арын тал: 8-р хуудас текст | 8-р хуудас зураг</span></label>
+        </div>
       </div>
     </div>
 
@@ -1449,9 +1439,7 @@ function saveImpositionChecklist(state) {
 function applyImpositionCheckboxState() {
   const state = loadImpositionChecklist();
   document.querySelectorAll(".imposition-checkbox").forEach((cb) => {
-    const id = cb.dataset.sheetId;
-    cb.checked = !!state[id];
-    cb.closest(".imposition-sheet").classList.toggle("checked", cb.checked);
+    cb.checked = !!state[cb.dataset.sheetId];
   });
 }
 
@@ -1460,7 +1448,6 @@ document.querySelectorAll(".imposition-checkbox").forEach((cb) => {
     const state = loadImpositionChecklist();
     state[cb.dataset.sheetId] = cb.checked;
     saveImpositionChecklist(state);
-    cb.closest(".imposition-sheet").classList.toggle("checked", cb.checked);
   });
 });
 
