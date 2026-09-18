@@ -362,6 +362,17 @@
     cursor: pointer;
   }
   .btn-page-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-page-copy {
+    font-size: 14px;
+    background: var(--cream);
+    border: none;
+    border-radius: 999px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .btn-page-copy:hover { background: var(--cream-2); }
   .page-edit-status {
     font-size: 12px;
     color: var(--plum-soft);
@@ -746,8 +757,6 @@ function renderOrderDetail(order) {
       <p class="generate-all-progress" id="downloadAllProgress"></p>
       <button type="button" class="btn-restart-pages" id="restartPagesBtn">↺ Бусад хуудсыг дахин эхлэх</button>
       <p class="generate-all-progress" id="restartPagesProgress"></p>
-      <button type="button" class="btn-download-all" id="copyTextBtn">📋 Хуудсуудын текстийг хуулах</button>
-      <p class="generate-all-progress" id="copyTextProgress"></p>
     </div>
 
     <div class="page-edit-list" id="orderPagesList"></div>
@@ -814,7 +823,6 @@ function renderOrderDetail(order) {
   document.getElementById("generateAllBtn").addEventListener("click", () => generateAllRemaining(order));
   document.getElementById("downloadAllBtn").addEventListener("click", () => downloadAllImages(order));
   document.getElementById("restartPagesBtn").addEventListener("click", () => restartOtherPages(order));
-  document.getElementById("copyTextBtn").addEventListener("click", () => copyAllPageText(order));
 }
 
 // ---------- хавтасны хээ ----------
@@ -1036,11 +1044,14 @@ function renderPagesList(order) {
         <textarea class="page-edit-textarea" id="pageText-${i}">${escapeHtml(generated ? generated.caption : storyPage.caption)}</textarea>
         <div class="page-edit-actions">
           <button class="btn-page-generate" id="pageBtn-${i}">${generated ? "🔄 Дахин зурах" : "Зурах"}</button>
+          <button class="btn-page-copy" id="pageCopyBtn-${i}" title="Энэ хуудасны текстийг хуулах">📋</button>
           <span class="page-edit-status" id="pageStatus-${i}"></span>
         </div>
       </div>
     `;
     list.appendChild(card);
+
+    document.getElementById(`pageCopyBtn-${i}`).addEventListener("click", () => copyOnePageText(i));
 
     if (generated) {
       const imgWrap = document.getElementById(`pageImgWrap-${i}`);
@@ -1220,23 +1231,21 @@ async function generateAllRemaining(order) {
   refreshList();
 }
 
-async function copyAllPageText(order) {
-  const progress = document.getElementById("copyTextProgress");
+async function copyOnePageText(pageIndex) {
+  const ta = document.getElementById(`pageText-${pageIndex}`);
+  const status = document.getElementById(`pageStatus-${pageIndex}`);
+  if (!ta) return;
 
-  // Одоогийн (гараар засварласан байж болзошгүй) текстийг textarea-с уншина
-  const lines = order.storyPages.map((sp, i) => {
-    const ta = document.getElementById(`pageText-${i}`);
-    const text = ta ? ta.value.trim() : sp.caption;
-    return `${i + 1}. ${text}`;
-  });
-  const fullText = lines.join("\n\n");
-
+  const text = ta.value.trim();
   try {
-    await navigator.clipboard.writeText(fullText);
-    progress.textContent = "✓ Хуулагдлаа";
+    await navigator.clipboard.writeText(text);
+    if (status) {
+      const prev = status.textContent;
+      status.textContent = "✓ Хуулагдлаа";
+      setTimeout(() => { status.textContent = prev; }, 1500);
+    }
   } catch (err) {
-    // clipboard API боломжгүй бол текстийг харуулаад гараар хуулуулна
-    prompt("Доорх текстийг хуулна уу:", fullText);
+    prompt("Доорх текстийг хуулна уу:", text);
   }
 }
 
