@@ -65,8 +65,10 @@ exports.handler = async (event) => {
   const pronounEn = gender === "хүү" ? "he/him" : "she/her";
 
   const prompt = `
-You are a children's book author. Write a personalized ${PAGE_COUNT}-page picture
-book outline for a ${genderEn} named "${childName}", age ${age}, who is interested in:
+You are an award-winning children's book author writing in MONGOLIAN, known for
+warm, vivid, and beautifully-written prose that both children and parents love
+to read aloud. Write a personalized ${PAGE_COUNT}-page picture book outline for
+a ${genderEn} named "${childName}", age ${age}, who is interested in:
 ${interests}.
 
 CRITICAL: The child is a ${genderEn} (pronouns: ${pronounEn}). Every scene
@@ -74,7 +76,7 @@ description and caption must consistently refer to the child as a ${genderEn} �
 do not default to the opposite gender, do not use gender-neutral phrasing when a
 specific pronoun is natural, and do not switch gender partway through the story.
 
-Requirements:
+STORY STRUCTURE requirements:
 - Age-appropriate for a ${age}-year-old (simple, warm, gentle themes; nothing scary).
 - Weave their interests (${interests}) naturally into the plot and setting.
 - Introduce ONE recurring companion character or magical element early on (e.g. an
@@ -82,13 +84,39 @@ Requirements:
   visually consistent throughout all ${PAGE_COUNT} pages.
 - The story must have a clear beginning (pages 1-2), middle with a small
   challenge or adventure (pages 3-8), and a warm resolution/ending (pages 9-10).
+- Each page must follow logically and causally from the one before it — a reader
+  should always understand WHY the next thing happens. Avoid random unconnected
+  events; build clear cause-and-effect between pages.
+
+MONGOLIAN LANGUAGE QUALITY — this is critical, read carefully:
+- Write in natural, idiomatic, beautifully-flowing Mongolian — the kind a skilled
+  Mongolian children's author would write, NOT a stiff or translated-sounding
+  sentence. Avoid awkward literal phrasing.
+- Vary sentence structure and opening words across pages. Do NOT start every
+  caption the same way (e.g. do not begin most sentences with "Тэр..." or the
+  child's name) — mix subject-first, time/place-first, and action-first sentence
+  openings across the ${PAGE_COUNT} pages for rhythm and variety.
+- Use rich, specific, sensory vocabulary appropriate for a ${age}-year-old — vivid
+  verbs and descriptive words rather than generic, repeated ones. Avoid reusing
+  the same verb or adjective on multiple pages (e.g. don't overuse "гайхалтай",
+  "баяртай", "олов" repeatedly) — choose varied, precise Mongolian words for each
+  moment's specific action and emotion.
+- Favor concrete, vivid imagery and natural Mongolian storytelling rhythm
+  (including onomatopoeia or playful sound-words where they fit naturally) over
+  flat description.
+- Each caption should read smoothly aloud, with natural Mongolian sentence flow
+  and correct grammar — imagine a parent reading it to their child at bedtime.
+
+TECHNICAL requirements:
 - Each page's "sceneDescription" must be written in ENGLISH, 2-3 sentences, very
   concrete and visual (describing exactly what the child character and companion
   are doing, where they are, what mood/lighting), because it will be used
   word-for-word as an image generation prompt for an illustrator AI. Do NOT
   mention text, speech bubbles, or words appearing in the image.
-- Each page's "caption" must be written in MONGOLIAN, a short warm sentence
-  (max 12 words) describing that page, suitable as a caption under the illustration.
+- Each page's "caption" must be written in MONGOLIAN, one warm, well-crafted
+  sentence (roughly 8-18 words — favor a complete, natural sentence over hitting
+  an exact word count) describing that page, suitable as a caption under the
+  illustration.
 
 Return ONLY valid JSON (no markdown code fences, no extra commentary), in exactly
 this shape:
