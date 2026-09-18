@@ -979,7 +979,7 @@ async function generateBackground(order) {
 
   try {
     const genData = await fetchJsonWithRetry(
-      "/.netlify/functions/generate-background",
+      "/.netlify/functions/generate-bg-image",
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-pin": adminPin },
@@ -998,7 +998,7 @@ async function generateBackground(order) {
       }
     );
 
-    await adminFetch("/.netlify/functions/set-order-background", {
+    await adminFetch("/.netlify/functions/set-order-bgimage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: order.id, imageBase64: genData.imageBase64, backgroundDescription: description }),
