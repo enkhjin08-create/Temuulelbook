@@ -162,18 +162,50 @@
   }
   .promo-list { display: flex; flex-direction: column; gap: 8px; }
   .imposition-sheet {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
     background: var(--cream);
     border-radius: 8px;
     padding: 10px 14px;
     margin-bottom: 8px;
     font-size: 13px;
     color: var(--plum);
+    cursor: pointer;
   }
-  .imposition-sheet b {
+  .imposition-checkbox {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: var(--sage);
+    cursor: pointer;
+  }
+  .imposition-sheet-text { flex: 1; }
+  .imposition-sheet-text b {
     display: block;
     font-family: var(--font-display);
     color: var(--coral);
     margin-bottom: 4px;
+  }
+  .imposition-sheet.checked {
+    background: #e3ecdf;
+    opacity: 0.65;
+  }
+  .imposition-sheet.checked .imposition-sheet-text {
+    text-decoration: line-through;
+  }
+  .btn-imposition-reset {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--plum-soft);
+    background: var(--cream-2);
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+    margin-bottom: 12px;
   }
 
   .promo-row-item {
@@ -425,36 +457,53 @@
     <div class="promo-panel">
       <button type="button" class="btn-toggle-promo" id="toggleImpositionBtn">🖨 Хэвлэлийн зохион байгуулалт (10 хуудас)</button>
       <div id="impositionPanelBody" hidden>
-        <p class="page-edit-hint" style="margin-bottom:14px;">10 хуудастай номыг гараар атираад холбоход, цаас бүрийг ямар дараалалтай хэвлэхийг харуулна. Схем нь бүх 10 хуудастай захиалгад ижил хэвээр байна.</p>
+        <p class="page-edit-hint" style="margin-bottom:14px;">10 хуудастай номыг гараар атираад холбоход, цаас бүрийг ямар дараалалтай хэвлэхийг харуулна. Схем нь бүх 10 хуудастай захиалгад ижил хэвээр байна. Хэвлэсэн цаасаа чагтлаж явна уу.</p>
+
+        <button type="button" class="btn-imposition-reset" id="impositionResetBtn">↺ Бүгдийг цэвэрлэх</button>
 
         <h4 style="font-family:var(--font-display); font-size:14px; color:var(--plum); margin:12px 0 6px;">Бүлэг 1 (3 цаас)</h4>
-        <div class="imposition-sheet">
-          <b>Цаас 1</b>
-          <div>Урд тал: 6-р хуудас текст | Нүүр хуудас</div>
-          <div>Арын тал: 1-р хуудас текст | 5-р хуудас зураг</div>
-        </div>
-        <div class="imposition-sheet">
-          <b>Цаас 2</b>
-          <div>Урд тал: 5-р хуудас текст | 1-р хуудас зураг</div>
-          <div>Арын тал: 2-р хуудас текст | 4-р хуудас зураг</div>
-        </div>
-        <div class="imposition-sheet">
-          <b>Цаас 3</b>
-          <div>Урд тал: 4-р хуудас текст | 2-р хуудас зураг</div>
-          <div>Арын тал: 3-р хуудас текст | 3-р хуудас зураг</div>
-        </div>
+        <label class="imposition-sheet">
+          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-1" />
+          <div class="imposition-sheet-text">
+            <b>Цаас 1</b>
+            <div>Урд тал: 6-р хуудас текст | Нүүр хуудас</div>
+            <div>Арын тал: 1-р хуудас текст | 5-р хуудас зураг</div>
+          </div>
+        </label>
+        <label class="imposition-sheet">
+          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-2" />
+          <div class="imposition-sheet-text">
+            <b>Цаас 2</b>
+            <div>Урд тал: 5-р хуудас текст | 1-р хуудас зураг</div>
+            <div>Арын тал: 2-р хуудас текст | 4-р хуудас зураг</div>
+          </div>
+        </label>
+        <label class="imposition-sheet">
+          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s1-3" />
+          <div class="imposition-sheet-text">
+            <b>Цаас 3</b>
+            <div>Урд тал: 4-р хуудас текст | 2-р хуудас зураг</div>
+            <div>Арын тал: 3-р хуудас текст | 3-р хуудас зураг</div>
+          </div>
+        </label>
 
         <h4 style="font-family:var(--font-display); font-size:14px; color:var(--plum); margin:16px 0 6px;">Бүлэг 2 (2 цаас)</h4>
-        <div class="imposition-sheet">
-          <b>Цаас 1</b>
-          <div>Урд тал: 10-р хуудас (текст+зураг) | 6-р хуудас зураг</div>
-          <div>Арын тал: 7-р хуудас текст | 9-р хуудас зураг</div>
-        </div>
-        <div class="imposition-sheet">
-          <b>Цаас 2</b>
-          <div>Урд тал: 9-р хуудас текст | 7-р хуудас зураг</div>
-          <div>Арын тал: 8-р хуудас текст | 8-р хуудас зураг</div>
-        </div>
+        <label class="imposition-sheet">
+          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s2-1" />
+          <div class="imposition-sheet-text">
+            <b>Цаас 1</b>
+            <div>Урд тал: 10-р хуудас (текст+зураг) | 6-р хуудас зураг</div>
+            <div>Арын тал: 7-р хуудас текст | 9-р хуудас зураг</div>
+          </div>
+        </label>
+        <label class="imposition-sheet">
+          <input type="checkbox" class="imposition-checkbox" data-sheet-id="s2-2" />
+          <div class="imposition-sheet-text">
+            <b>Цаас 2</b>
+            <div>Урд тал: 9-р хуудас текст | 7-р хуудас зураг</div>
+            <div>Арын тал: 8-р хуудас текст | 8-р хуудас зураг</div>
+          </div>
+        </label>
       </div>
     </div>
 
@@ -1380,6 +1429,48 @@ document.getElementById("toggleImpositionBtn").addEventListener("click", () => {
   const body = document.getElementById("impositionPanelBody");
   body.hidden = !body.hidden;
 });
+
+// ---------- хэвлэлийн зохион байгуулалтын чагтлах жагсаалт ----------
+
+const IMPOSITION_CHECKLIST_KEY = "impositionChecklist";
+
+function loadImpositionChecklist() {
+  try {
+    return JSON.parse(localStorage.getItem(IMPOSITION_CHECKLIST_KEY) || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveImpositionChecklist(state) {
+  localStorage.setItem(IMPOSITION_CHECKLIST_KEY, JSON.stringify(state));
+}
+
+function applyImpositionCheckboxState() {
+  const state = loadImpositionChecklist();
+  document.querySelectorAll(".imposition-checkbox").forEach((cb) => {
+    const id = cb.dataset.sheetId;
+    cb.checked = !!state[id];
+    cb.closest(".imposition-sheet").classList.toggle("checked", cb.checked);
+  });
+}
+
+document.querySelectorAll(".imposition-checkbox").forEach((cb) => {
+  cb.addEventListener("change", () => {
+    const state = loadImpositionChecklist();
+    state[cb.dataset.sheetId] = cb.checked;
+    saveImpositionChecklist(state);
+    cb.closest(".imposition-sheet").classList.toggle("checked", cb.checked);
+  });
+});
+
+document.getElementById("impositionResetBtn").addEventListener("click", () => {
+  if (!confirm("Бүх чагтыг цэвэрлэх үү?")) return;
+  saveImpositionChecklist({});
+  applyImpositionCheckboxState();
+});
+
+applyImpositionCheckboxState();
 
 promoCreateForm.addEventListener("submit", async (e) => {
   e.preventDefault();
