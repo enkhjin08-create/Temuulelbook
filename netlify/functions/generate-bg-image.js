@@ -1,10 +1,10 @@
-// netlify/functions/generate-background.js
+// netlify/functions/generate-bg-image.js
 //
 // Admin-only. Номын дотор текстний ард тавих зөөлөн дэвсгэр зургийг зурна.
-// Захиалагчийн зураг шаардахгүй — зөвхөн текст prompt-оос шууд зурна.
+// 1-р хуудасны зургийг reference болгож ашиглаж, стилийг нэгтгэдэг.
 //
 // Хүлээн авах (POST JSON):
-//   { storyTitle, interests, gender, backgroundDescription, requestId }
+//   { storyTitle, interests, gender, backgroundDescription, photoBase64, requestId }
 //
 // Буцаах (200 JSON): { imageBase64 }
 // Header: x-admin-pin
@@ -33,10 +33,13 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { storyTitle, interests, gender, backgroundDescription, requestId } = body;
+  const { storyTitle, interests, gender, backgroundDescription, photoBase64, requestId } = body;
 
   if (!backgroundDescription || typeof backgroundDescription !== "string") {
     return respond(400, { error: "Дэвсгэрийн тайлбар дутуу байна." });
+  }
+  if (!photoBase64 || typeof photoBase64 !== "string") {
+    return respond(400, { error: "Reference зураг дутуу байна (эхлээд 1-р хуудсаа зурна уу)." });
   }
   if (!process.env.GEMINI_API_KEY) {
     return respond(500, { error: "Серверт GEMINI_API_KEY тохируулаагүй байна." });
@@ -54,12 +57,21 @@ exports.handler = async (event) => {
     backgroundDescription,
   });
 
+  const match = String(photoBase64).match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+  const mimeType = match ? match[1] : "image/jpeg";
+  const rawBase64 = match ? match[2] : photoBase64;
+
   try {
     const geminiRes = await fetch(`${GEMINI_ENDPOINT}?key=${process.env.GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        contents: [
+          {
+            role: "user",
+            parts: [{ inlineData: { mimeType, data: rawBase64 } }, { text: prompt }],
+          },
+        ],
         generationConfig: {
           responseModalities: ["TEXT", "IMAGE"],
           imageConfig: {

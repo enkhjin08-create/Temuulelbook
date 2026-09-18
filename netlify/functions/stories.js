@@ -149,6 +149,11 @@ inside a personalized children's picture book for a ${genderEn}. This is NOT a
 story page — it is a decorative background image that text will be overlaid
 on top of afterward.
 
+The attached reference image is page 1 of this same book. Match its exact art
+style, color palette, brush texture, lighting mood, and overall visual feel —
+this background must look like it belongs to the SAME printed book as the
+reference image, not a different illustration style.
+
 Book context: "${storyTitle}", themed around: ${interests}.
 
 Background description: ${backgroundDescription}
@@ -159,13 +164,14 @@ Design requirements:
 - Thematically connected to the book's story/interests, but understated — this
   supports the text, it must not compete with or overpower it
 - NO characters, NO faces, NO people, NO text or letters anywhere in the image
-- Gentle, warm, slightly muted color palette consistent with a cozy children's
-  book
+- Same color palette and rendering style as the reference image — gentle, warm,
+  slightly muted, consistent with the rest of the book
 
 ${STYLE_GUIDE}
 
 The final image should feel like a soft, story-appropriate page background
-that text can sit comfortably on top of — not a story scene itself.
+that text can sit comfortably on top of — visually part of the same book as
+the reference image, not a story scene itself.
 `.trim();
 }
 

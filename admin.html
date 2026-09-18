@@ -1009,6 +1009,12 @@ async function generateBackground(order) {
     return;
   }
 
+  const firstPage = order.generatedPages.find((p) => p.pageIndex === 0);
+  if (!firstPage) {
+    status.textContent = "Эхлээд 1-р хуудсыг зурна уу.";
+    return;
+  }
+
   const originalBtnText = btn.textContent;
   btn.disabled = true;
   btn.textContent = "Зурж байна…";
@@ -1017,6 +1023,8 @@ async function generateBackground(order) {
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   try {
+    const referenceImageBase64 = await fetchOrderImageDataUrl(firstPage.imageKey);
+
     const genData = await fetchJsonWithRetry(
       "/.netlify/functions/generate-bg-image",
       {
@@ -1027,6 +1035,7 @@ async function generateBackground(order) {
           interests: order.interests,
           gender: order.gender,
           backgroundDescription: description,
+          photoBase64: referenceImageBase64,
           requestId,
         }),
       },
