@@ -161,6 +161,21 @@
     cursor: pointer;
   }
   .promo-list { display: flex; flex-direction: column; gap: 8px; }
+  .imposition-sheet {
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--plum);
+  }
+  .imposition-sheet b {
+    display: block;
+    font-family: var(--font-display);
+    color: var(--coral);
+    margin-bottom: 4px;
+  }
+
   .promo-row-item {
     display: flex;
     align-items: center;
@@ -396,6 +411,42 @@
       </div>
     </div>
 
+    <div class="promo-panel">
+      <button type="button" class="btn-toggle-promo" id="toggleImpositionBtn">🖨 Хэвлэлийн зохион байгуулалт (10 хуудас)</button>
+      <div id="impositionPanelBody" hidden>
+        <p class="page-edit-hint" style="margin-bottom:14px;">10 хуудастай номыг гараар атираад холбоход, цаас бүрийг ямар дараалалтай хэвлэхийг харуулна. Схем нь бүх 10 хуудастай захиалгад ижил хэвээр байна.</p>
+
+        <h4 style="font-family:var(--font-display); font-size:14px; color:var(--plum); margin:12px 0 6px;">Бүлэг 1 (3 цаас)</h4>
+        <div class="imposition-sheet">
+          <b>Цаас 1</b>
+          <div>Урд тал: 6-р хуудас текст | Нүүр хуудас</div>
+          <div>Арын тал: 1-р хуудас текст | 5-р хуудас зураг</div>
+        </div>
+        <div class="imposition-sheet">
+          <b>Цаас 2</b>
+          <div>Урд тал: 5-р хуудас текст | 1-р хуудас зураг</div>
+          <div>Арын тал: 2-р хуудас текст | 4-р хуудас зураг</div>
+        </div>
+        <div class="imposition-sheet">
+          <b>Цаас 3</b>
+          <div>Урд тал: 4-р хуудас текст | 2-р хуудас зураг</div>
+          <div>Арын тал: 3-р хуудас текст | 3-р хуудас зураг</div>
+        </div>
+
+        <h4 style="font-family:var(--font-display); font-size:14px; color:var(--plum); margin:16px 0 6px;">Бүлэг 2 (2 цаас)</h4>
+        <div class="imposition-sheet">
+          <b>Цаас 1</b>
+          <div>Урд тал: 10-р хуудас (текст+зураг) | 6-р хуудас зураг</div>
+          <div>Арын тал: 7-р хуудас текст | 9-р хуудас зураг</div>
+        </div>
+        <div class="imposition-sheet">
+          <b>Цаас 2</b>
+          <div>Урд тал: 9-р хуудас текст | 7-р хуудас зураг</div>
+          <div>Арын тал: 8-р хуудас текст | 8-р хуудас зураг</div>
+        </div>
+      </div>
+    </div>
+
     <div id="adminLoading">Ачааллаж байна…</div>
     <div id="adminError" hidden></div>
 
@@ -620,6 +671,7 @@ function renderOrderDetail(order) {
         <h2 style="font-family:var(--font-display);margin:0 0 4px;color:var(--plum);">${escapeHtml(order.childName)} — ${escapeHtml(order.storyTitle || "")}</h2>
         <p style="margin:0 0 6px;font-weight:700;color:var(--coral);">Захиалгын дугаар: #${escapeHtml(order.orderNumber || "")}</p>
         ${order.paymentClaimedAt ? `<p style="margin:0 0 6px;font-size:12.5px;color:#2f6b2a;">💰 Захиалагч төлбөр төлсөн гэж мэдэгдсэн (${formatDate(order.paymentClaimedAt)})</p>` : ""}
+        ${order.coverDedication ? `<p style="margin:0 0 6px;font-size:13px;background:var(--cream);border-radius:8px;padding:8px 12px;color:var(--plum);"><b>📝 Нүүр хуудасны бичвэр:</b> ${escapeHtml(order.coverDedication)}</p>` : ""}
         <span class="order-status-badge status-${order.status}">${STATUS_LABELS[order.status] || order.status}</span>
       </div>
       <div class="order-detail-actions">
@@ -694,6 +746,8 @@ function renderOrderDetail(order) {
       <p class="generate-all-progress" id="downloadAllProgress"></p>
       <button type="button" class="btn-restart-pages" id="restartPagesBtn">↺ Бусад хуудсыг дахин эхлэх</button>
       <p class="generate-all-progress" id="restartPagesProgress"></p>
+      <button type="button" class="btn-download-all" id="copyTextBtn">📋 Хуудсуудын текстийг хуулах</button>
+      <p class="generate-all-progress" id="copyTextProgress"></p>
     </div>
 
     <div class="page-edit-list" id="orderPagesList"></div>
@@ -760,6 +814,7 @@ function renderOrderDetail(order) {
   document.getElementById("generateAllBtn").addEventListener("click", () => generateAllRemaining(order));
   document.getElementById("downloadAllBtn").addEventListener("click", () => downloadAllImages(order));
   document.getElementById("restartPagesBtn").addEventListener("click", () => restartOtherPages(order));
+  document.getElementById("copyTextBtn").addEventListener("click", () => copyAllPageText(order));
 }
 
 // ---------- хавтасны хээ ----------
@@ -1165,6 +1220,26 @@ async function generateAllRemaining(order) {
   refreshList();
 }
 
+async function copyAllPageText(order) {
+  const progress = document.getElementById("copyTextProgress");
+
+  // Одоогийн (гараар засварласан байж болзошгүй) текстийг textarea-с уншина
+  const lines = order.storyPages.map((sp, i) => {
+    const ta = document.getElementById(`pageText-${i}`);
+    const text = ta ? ta.value.trim() : sp.caption;
+    return `${i + 1}. ${text}`;
+  });
+  const fullText = lines.join("\n\n");
+
+  try {
+    await navigator.clipboard.writeText(fullText);
+    progress.textContent = "✓ Хуулагдлаа";
+  } catch (err) {
+    // clipboard API боломжгүй бол текстийг харуулаад гараар хуулуулна
+    prompt("Доорх текстийг хуулна уу:", fullText);
+  }
+}
+
 async function restartOtherPages(order) {
   const confirmed = confirm(
     "1-р хуудсыг эс тооцвол, бусад бүх зурагдсан хуудсыг устгаж, дахин эхлэх үү? Энэ үйлдлийг буцаах боломжгүй."
@@ -1290,6 +1365,11 @@ async function downloadAllImages(order) {
 togglePromoBtn.addEventListener("click", () => {
   promoPanelBody.hidden = !promoPanelBody.hidden;
   if (!promoPanelBody.hidden) loadPromos();
+});
+
+document.getElementById("toggleImpositionBtn").addEventListener("click", () => {
+  const body = document.getElementById("impositionPanelBody");
+  body.hidden = !body.hidden;
 });
 
 promoCreateForm.addEventListener("submit", async (e) => {

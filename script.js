@@ -47,6 +47,7 @@ const orderCtaBtn = document.getElementById("orderCtaBtn");
 const orderForm = document.getElementById("orderForm");
 const orderPhoneInput = document.getElementById("orderPhone");
 const orderAddressInput = document.getElementById("orderAddress");
+const orderDedicationInput = document.getElementById("orderDedication");
 const orderNoteInput = document.getElementById("orderNote");
 const promoCodeInput = document.getElementById("promoCodeInput");
 const promoApplyBtn = document.getElementById("promoApplyBtn");
@@ -426,6 +427,7 @@ orderForm.addEventListener("submit", async (e) => {
         contactPhone: phone,
         contactAddress: address,
         contactNote: orderNoteInput.value.trim(),
+        coverDedication: orderDedicationInput.value.trim(),
         promoCode: appliedPromoCode || undefined,
       }),
     });

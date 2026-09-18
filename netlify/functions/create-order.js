@@ -64,7 +64,7 @@ exports.handler = async (event) => {
   const {
     childName, gender, age, interests, storyTitle, storyPages,
     photoBase64, firstPageImageBase64, contactPhone, contactAddress, contactNote,
-    promoCode,
+    coverDedication, promoCode,
   } = body;
 
   if (!childName || typeof childName !== "string") {
@@ -135,6 +135,7 @@ exports.handler = async (event) => {
       contactPhone,
       contactAddress,
       contactNote: contactNote || "",
+      coverDedication: coverDedication || "",
       status: "new",
       price: finalPrice,
       basePrice: PRICE,
