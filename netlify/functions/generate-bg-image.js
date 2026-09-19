@@ -1,11 +1,10 @@
 // netlify/functions/generate-bg-image.js
 //
-// Admin-only. Номын дотор текстний ард тавих зөөлөн дэвсгэр зургийг зурна.
-// Сонгосон хуудасны зургийг reference болгож, түүнээс дүр/зүйлсийг арилгаад
-// зөвхөн орчинг нь үлдээнэ.
+// Admin-only. Захиалагчийн сонгосон хуудасны зургийг reference болгож,
+// object/дүрсийг нь цэвэрлээд, зөвхөн орчинг үлдээж, текстний ард тавих
+// дэвсгэр зураг гаргана.
 //
-// Хүлээн авах (POST JSON):
-//   { pageCaption, photoBase64, requestId }
+// Хүлээн авах (POST JSON): { pageCaption, photoBase64, requestId }
 //
 // Буцаах (200 JSON): { imageBase64 }
 // Header: x-admin-pin
@@ -36,11 +35,8 @@ exports.handler = async (event) => {
 
   const { pageCaption, photoBase64, requestId } = body;
 
-  if (!pageCaption || typeof pageCaption !== "string") {
-    return respond(400, { error: "Хуудасны тайлбар (pageCaption) дутуу байна." });
-  }
   if (!photoBase64 || typeof photoBase64 !== "string") {
-    return respond(400, { error: "Reference зураг дутуу байна (эхлээд 1-р хуудсаа зурна уу)." });
+    return respond(400, { error: "Reference зураг дутуу байна (эхлээд хуудсаа зурна уу)." });
   }
   if (!process.env.GEMINI_API_KEY) {
     return respond(500, { error: "Серверт GEMINI_API_KEY тохируулаагүй байна." });
@@ -51,7 +47,7 @@ exports.handler = async (event) => {
     return respond(200, idem.cached);
   }
 
-  const prompt = buildBackgroundPrompt({ pageCaption });
+  const prompt = buildBackgroundPrompt({ pageCaption: pageCaption || "" });
 
   const match = String(photoBase64).match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
   const mimeType = match ? match[1] : "image/jpeg";
