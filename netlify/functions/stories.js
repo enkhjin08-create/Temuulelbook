@@ -24,7 +24,7 @@ frame — the person will place it into a book layout themselves afterward.
 
 // pageIndex === 0 үед захиалагчийн бодит зургийг reference болгоно.
 // pageIndex > 0 үед өмнөх generate хийсэн зургийг reference болгоно (тогтвортой дүр).
-function buildPagePrompt({ childName, gender, sceneDescription, pageIndex, totalPages, allPageCaptions }) {
+function buildPagePrompt({ childName, gender, sceneDescription, pageIndex, totalPages, allPageCaptions, hasPreviousReference }) {
   const isFirstPage = pageIndex === 0;
   const pageNum = pageIndex + 1;
   const genderEn = gender === "хүү" ? "boy" : "girl";
@@ -59,16 +59,35 @@ identical across all ${totalPages} pages of this book.
 
   const storyContextBlock = buildStoryContextBlock(allPageCaptions, pageIndex);
 
-  return `
-You are illustrating page ${pageNum} of ${totalPages} of the same personalized
-children's picture book featuring ${childName} (a ${genderEn}), continuing
-directly from the previous page.
-
+  const referenceImagesBlock = hasPreviousReference
+    ? `
+You are given TWO reference images, in this order:
+1. REFERENCE IMAGE 1 (page 1 of the book) — this defines the child's permanent
+   character design. Keep the child's face, hairstyle, skin tone, and outfit
+   IDENTICAL to this image — do not redesign or change them in any way. Keep
+   any companion character's design identical to this too.
+2. REFERENCE IMAGE 2 (the immediately previous page of the book) — this shows
+   the most recent setting/location/props. If THIS page's scene is a direct
+   continuation of the same moment/location as reference image 2 (check the
+   story context below), keep the same background, setting, and any props or
+   objects (e.g. a stage, a decorated room, an object the child is holding or
+   built) visually consistent with reference image 2 — do not silently change
+   or drop them. Only depart from reference image 2's setting if the story
+   context clearly indicates the scene has moved to a new place.
+`
+    : `
 The attached reference image shows the exact same child character (${childName})
 and any companion character(s), already established in a Ghibli-inspired
 illustration style. Keep the child's face, hairstyle, skin tone, and outfit
 IDENTICAL to the reference image — do not redesign or change them in any way.
 Keep any companion character's design identical too.
+`;
+
+  return `
+You are illustrating page ${pageNum} of ${totalPages} of the same personalized
+children's picture book featuring ${childName} (a ${genderEn}), continuing
+directly from the previous page.
+${referenceImagesBlock}
 ${storyContextBlock}
 Scene for THIS page (page ${pageNum}): ${sceneDescription}
 
@@ -80,8 +99,10 @@ for a "jungle"), keep drawing that same real-world object/setting on later pages
 that reference it — do NOT suddenly render it as a literal, realistic version of
 the pretend thing. Only draw a literal/real version of something if the story
 context actually places the character in that real setting. Also keep any object,
-item, or character introduced in an earlier page (that reappears in this page's
-scene) visually consistent with how it was first described.
+item, setting, or character introduced in an earlier page (that reappears or
+continues in this page's scene) visually consistent with how it was last shown —
+including furniture, stages, decorations, or props the character built, set up,
+or is using, unless the story explicitly says they moved to a different place.
 
 ${STYLE_GUIDE}
 
@@ -140,38 +161,33 @@ character.
 
 // Номын дотор ТЕКСТНИЙ АРД тавих зөөлөн дэвсгэр зураг — түүхийн сэдэвтэй
 // холбоотой, гэхдээ дүр/текст ороогүй, дээр нь текст тавихад тохиромжтой.
-function buildBackgroundPrompt({ storyTitle, interests, gender, backgroundDescription }) {
-  const genderEn = gender === "хүү" ? "boy" : "girl";
-
+function buildBackgroundPrompt({ pageCaption }) {
   return `
-You are designing a soft background illustration to be placed BEHIND text
-inside a personalized children's picture book for a ${genderEn}. This is NOT a
-story page — it is a decorative background image that text will be overlaid
-on top of afterward.
+You are creating a decorative background image, to be placed BEHIND text
+inside a personalized children's picture book. This is NOT a new story scene —
+it is an EDIT of the attached reference image (one page from this same book).
 
-The attached reference image is page 1 of this same book. Match its exact art
-style, color palette, brush texture, lighting mood, and overall visual feel —
-this background must look like it belongs to the SAME printed book as the
-reference image, not a different illustration style.
+Redraw the EXACT SAME background, setting, environment, color palette,
+lighting, and art style as the attached reference image — but remove every
+foreground object, item, prop, and character from it. Keep only the empty
+backdrop: walls, floor/ground, sky, furniture built into the room, background
+scenery, etc. Remove all characters, people, animals, toys, held objects, and
+any other foreground items that were part of the scene's action. Do not
+invent new elements — only subtract, never add.
 
-Book context: "${storyTitle}", themed around: ${interests}.
-
-Background description: ${backgroundDescription}
+For context, this page originally depicted: ${pageCaption}
 
 Design requirements:
-- Soft, low-contrast, uncluttered composition with generous calm open space so
-  text stays easy to read once placed on top of this image
-- Thematically connected to the book's story/interests, but understated — this
-  supports the text, it must not compete with or overpower it
-- NO characters, NO faces, NO people, NO text or letters anywhere in the image
-- Same color palette and rendering style as the reference image — gentle, warm,
-  slightly muted, consistent with the rest of the book
+- Soft, low-contrast, uncluttered result with generous calm open space so text
+  stays easy to read once placed on top of this image
+- Keep the exact same color palette and rendering style as the reference image
+- NO characters, NO faces, NO people, NO objects/props, NO text or letters
+  anywhere in the image — background/setting only
 
 ${STYLE_GUIDE}
 
-The final image should feel like a soft, story-appropriate page background
-that text can sit comfortably on top of — visually part of the same book as
-the reference image, not a story scene itself.
+The final image should look like the exact same location from the reference
+image, emptied out, ready for text to be placed on top of it.
 `.trim();
 }
 

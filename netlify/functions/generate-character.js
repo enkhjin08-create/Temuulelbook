@@ -5,9 +5,11 @@
 // хариу ихэнх тохиолдолд багтана.
 //
 // Хүлээн авах (POST JSON):
-//   { childName, photoBase64, pageIndex, totalPages, sceneDescription }
-//   - photoBase64: 0-р хуудсанд захиалагчийн бодит зураг, 1+ хуудсанд өмнөх
-//     generate хийсэн зураг (client талаас дамжуулна)
+//   { childName, photoBase64, pageIndex, totalPages, sceneDescription, previousPageImageBase64 }
+//   - photoBase64: 0-р хуудсанд захиалагчийн бодит зураг, 1+ хуудсанд 1-р
+//     хуудасны generate хийсэн зураг (дүрийн тогтвортой байдлыг хамгаална)
+//   - previousPageImageBase64: (заавал биш) шууд өмнөх хуудасны зураг —
+//     орчин/props-ийн залгамж холбоог хамгаалахад ашиглана (2 дахь reference)
 //   - sceneDescription: generate-story.js-ээс ирсэн тухайн хуудасны тайлбар
 //
 // Буцаах (200 JSON):
@@ -51,7 +53,7 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { childName, photoBase64, sceneDescription, gender, requestId, allPageCaptions } = body;
+  const { childName, photoBase64, sceneDescription, gender, requestId, allPageCaptions, previousPageImageBase64 } = body;
   const pageIndex = Number.isInteger(body.pageIndex) ? body.pageIndex : 0;
   const totalPages = Number.isInteger(body.totalPages) ? body.totalPages : 1;
 
@@ -81,7 +83,22 @@ exports.handler = async (event) => {
   const mimeType = match ? match[1] : "image/jpeg";
   const rawBase64 = match ? match[2] : photoBase64;
 
-  const prompt = buildPagePrompt({ childName, gender, sceneDescription, pageIndex, totalPages, allPageCaptions });
+  let prevMimeType, prevRawBase64;
+  if (previousPageImageBase64 && typeof previousPageImageBase64 === "string") {
+    const prevMatch = previousPageImageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+    prevMimeType = prevMatch ? prevMatch[1] : "image/jpeg";
+    prevRawBase64 = prevMatch ? prevMatch[2] : previousPageImageBase64;
+  }
+
+  const prompt = buildPagePrompt({
+    childName, gender, sceneDescription, pageIndex, totalPages, allPageCaptions,
+    hasPreviousReference: !!prevRawBase64,
+  });
+
+  const imageParts = [{ inlineData: { mimeType, data: rawBase64 } }];
+  if (prevRawBase64) {
+    imageParts.push({ inlineData: { mimeType: prevMimeType, data: prevRawBase64 } });
+  }
 
   try {
     const geminiRes = await fetch(`${GEMINI_ENDPOINT}?key=${process.env.GEMINI_API_KEY}`, {
@@ -93,7 +110,7 @@ exports.handler = async (event) => {
             role: "user",
             parts: [
               { text: prompt },
-              { inlineData: { mimeType, data: rawBase64 } },
+              ...imageParts,
             ],
           },
         ],

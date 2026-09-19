@@ -780,7 +780,13 @@ function renderOrderDetail(order) {
           ${order.backgroundImageKey ? "" : '<div class="page-edit-placeholder">Хараахан зураагүй</div>'}
         </div>
         <div class="page-edit-body">
-          <textarea class="page-edit-textarea" id="backgroundText" rows="3">${escapeHtml(order.backgroundDescription || `Номын түүхтэй холбоотой, зөөлөн, дээр нь текст тавихад тохиромжтой дэвсгэр зураг`)}</textarea>
+          <p class="page-edit-hint">Аль хуудасны орчинг ашиглахаа сонгоно уу — тэр зурагнаас дүр/зүйлсийг цэвэрлэж, зөвхөн орчинг нь дэвсгэр болгоно.</p>
+          <select class="page-edit-textarea" id="backgroundPageSelect" style="padding:8px 10px;">
+            ${order.storyPages.map((sp, i) => {
+              const gen = order.generatedPages.find((p) => p.pageIndex === i);
+              return `<option value="${i}" ${!gen ? "disabled" : ""}>${i + 1}-р хуудас${gen ? "" : " (хараахан зураагүй)"}</option>`;
+            }).join("")}
+          </select>
           <div class="page-edit-actions">
             <button class="btn-page-generate" id="backgroundBtn">${order.backgroundImageKey ? "🔄 Дахин зурах" : "Зурах"}</button>
             <span class="page-edit-status" id="backgroundStatus"></span>
@@ -998,22 +1004,18 @@ async function generateBackpage(order) {
 // ---------- дэвсгэр зураг ----------
 
 async function generateBackground(order) {
-  const textarea = document.getElementById("backgroundText");
+  const select = document.getElementById("backgroundPageSelect");
   const btn = document.getElementById("backgroundBtn");
   const status = document.getElementById("backgroundStatus");
   const imgWrap = document.getElementById("backgroundImgWrap");
 
-  const description = textarea.value.trim();
-  if (!description) {
-    alert("Дэвсгэрийн тайлбар хоосон байна.");
+  const chosenIndex = Number(select.value);
+  const chosenPage = order.generatedPages.find((p) => p.pageIndex === chosenIndex);
+  if (!chosenPage) {
+    status.textContent = "Эхлээд сонгосон хуудсаа зурна уу.";
     return;
   }
-
-  const firstPage = order.generatedPages.find((p) => p.pageIndex === 0);
-  if (!firstPage) {
-    status.textContent = "Эхлээд 1-р хуудсыг зурна уу.";
-    return;
-  }
+  const chosenCaption = chosenPage.caption || order.storyPages[chosenIndex].caption;
 
   const originalBtnText = btn.textContent;
   btn.disabled = true;
@@ -1023,7 +1025,7 @@ async function generateBackground(order) {
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   try {
-    const referenceImageBase64 = await fetchOrderImageDataUrl(firstPage.imageKey);
+    const referenceImageBase64 = await fetchOrderImageDataUrl(chosenPage.imageKey);
 
     const genData = await fetchJsonWithRetry(
       "/.netlify/functions/generate-bg-image",
@@ -1031,10 +1033,7 @@ async function generateBackground(order) {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-pin": adminPin },
         body: JSON.stringify({
-          storyTitle: order.storyTitle,
-          interests: order.interests,
-          gender: order.gender,
-          backgroundDescription: description,
+          pageCaption: chosenCaption,
           photoBase64: referenceImageBase64,
           requestId,
         }),
@@ -1049,11 +1048,10 @@ async function generateBackground(order) {
     await adminFetch("/.netlify/functions/set-order-bgimage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: order.id, imageBase64: genData.imageBase64, backgroundDescription: description }),
+      body: JSON.stringify({ id: order.id, imageBase64: genData.imageBase64, backgroundDescription: `${chosenIndex + 1}-р хуудаснаас` }),
     });
 
     order.backgroundImageKey = `${order.id}:background`;
-    order.backgroundDescription = description;
 
     imgWrap.innerHTML = "";
     const img = document.createElement("img");
@@ -1134,19 +1132,25 @@ async function generatePageAt(order, pageIndex) {
   }
 
   let referenceImageBase64;
+  let previousPageImageBase64;
   try {
     if (pageIndex === 0) {
       if (!order.originalPhotoKey) throw new Error("Эх зураг олдсонгүй.");
       referenceImageBase64 = await fetchOrderImageDataUrl(order.originalPhotoKey);
     } else {
-      // Дараалсан хуудас бүр өмнөх хуудсаа reference болгодог байсан тул, олон
-      // хуудас дараалан зурахад алдаа хуримтлагдаж (drift) дүр аажмаар
-      // өөрчлөгддөг асуудалтай байсан. Үүнийг засахын тулд, БҮХ хуудас
-      // ЯГ 1-р хуудасны (тогтвортой, гараар баталгаажуулсан дүр) зургийг л
-      // reference болгодог болгов — ингэснээр дүр хэзээ ч холдохгүй.
+      // 1-р хуудсыг ДҮРИЙН тогтвортой байдлын reference болгож ашиглана
+      // (олон хуудас дараалан зурахад дүр холдохоос сэргийлнэ).
       const firstPage = order.generatedPages.find((p) => p.pageIndex === 0);
       if (!firstPage) throw new Error("Эхлээд 1-р хуудсыг зурна уу.");
       referenceImageBase64 = await fetchOrderImageDataUrl(firstPage.imageKey);
+
+      // Шууд ӨМНӨХ хуудсыг НЭМЭЛТ reference болгож ашиглана — орчин, тайз,
+      // props зэргийн залгамж холбоог хамгаалахад зориулав (жишээ нь 3-р
+      // хуудсанд бэлтгэсэн тайз 4, 5-р хуудсанд ч мөн харагдах ёстой).
+      const prevPage = order.generatedPages.find((p) => p.pageIndex === pageIndex - 1);
+      if (prevPage) {
+        previousPageImageBase64 = await fetchOrderImageDataUrl(prevPage.imageKey);
+      }
     }
   } catch (err) {
     status.textContent = `Алдаа: ${err.message}`;
@@ -1175,6 +1179,7 @@ async function generatePageAt(order, pageIndex) {
           childName: order.childName,
           gender: order.gender,
           photoBase64: referenceImageBase64,
+          previousPageImageBase64,
           pageIndex,
           totalPages: order.storyPages.length,
           sceneDescription: text,
