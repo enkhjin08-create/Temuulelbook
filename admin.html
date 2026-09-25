@@ -405,6 +405,19 @@
     line-height: 1;
   }
   .btn-page-copy:hover { background: var(--cream-2); }
+  .btn-page-restore {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12.5px;
+    color: var(--ink, #2E2247);
+    background: var(--cream);
+    border: 1px solid var(--cream-2);
+    border-radius: 999px;
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+  .btn-page-restore:hover { background: var(--cream-2); }
+  .btn-page-restore:disabled { opacity: 0.5; cursor: not-allowed; }
   .page-edit-status {
     font-size: 12px;
     color: var(--plum-soft);
@@ -1125,6 +1138,7 @@ function renderPagesList(order) {
         <div class="page-edit-actions">
           <button class="btn-page-generate" id="pageBtn-${i}">${generated ? "🔄 Дахин зурах" : "Зурах"}</button>
           <button class="btn-page-copy" id="pageCopyBtn-${i}" title="Энэ хуудасны текстийг хуулах">📋</button>
+          <button class="btn-page-restore" id="pageRestoreBtn-${i}" title="Өмнөх зургийг сэргээх" ${generated && generated.hasPrevious ? "" : "hidden"}>↺ Өмнөх зураг</button>
           <span class="page-edit-status" id="pageStatus-${i}"></span>
         </div>
       </div>
@@ -1132,6 +1146,7 @@ function renderPagesList(order) {
     list.appendChild(card);
 
     document.getElementById(`pageCopyBtn-${i}`).addEventListener("click", () => copyOnePageText(i));
+    document.getElementById(`pageRestoreBtn-${i}`).addEventListener("click", () => restorePageAt(order, i));
 
     if (generated) {
       const imgWrap = document.getElementById(`pageImgWrap-${i}`);
@@ -1228,15 +1243,15 @@ async function generatePageAt(order, pageIndex) {
       }
     );
 
-    await adminFetch("/.netlify/functions/append-order-page", {
+    const appendData = await adminFetch("/.netlify/functions/append-order-page", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: order.id, pageIndex, imageBase64: genData.imageBase64, caption: text }),
-    });
+    }).then((r) => r.json());
 
     // Дараагийн давталтад ашиглагдахын тулд order объектыг локалиар шинэчилнэ
     const existingIdx = order.generatedPages.findIndex((p) => p.pageIndex === pageIndex);
-    const entry = { pageIndex, imageKey: `${order.id}:page${pageIndex}`, caption: text };
+    const entry = { pageIndex, imageKey: `${order.id}:page${pageIndex}`, caption: text, hasPrevious: !!appendData.hasPrevious };
     if (existingIdx >= 0) order.generatedPages[existingIdx] = entry;
     else order.generatedPages.push(entry);
 
@@ -1248,6 +1263,9 @@ async function generatePageAt(order, pageIndex) {
     status.textContent = "✓ Зурагдлаа";
     btn.textContent = "🔄 Дахин зурах";
     btn.disabled = false;
+
+    const restoreBtn = document.getElementById(`pageRestoreBtn-${pageIndex}`);
+    if (restoreBtn) restoreBtn.hidden = !appendData.hasPrevious;
 
     // 1-р хуудас амжилттай болмогц бүх бусад хуудсыг нэг дор идэвхжүүлнэ
     // (учир нь эдгээр нь бүгд 1-р хуудсыг reference болгодог тул дараалан
@@ -1274,6 +1292,39 @@ async function generatePageAt(order, pageIndex) {
     btn.textContent = originalBtnText;
     btn.disabled = false;
     return false;
+  }
+}
+
+// Хамгийн сүүлд дарагдсан "Дахин зурах"-аас өмнөх зургийг сэргээнэ.
+// Одоогийн болон өмнөх зургийг СОЛИЖ хадгалдаг тул, дахин дарвал буцаад
+// "сэргээхээс өмнөх" зурагтаа шилжинэ.
+async function restorePageAt(order, pageIndex) {
+  const restoreBtn = document.getElementById(`pageRestoreBtn-${pageIndex}`);
+  const status = document.getElementById(`pageStatus-${pageIndex}`);
+  const imgWrap = document.getElementById(`pageImgWrap-${pageIndex}`);
+
+  restoreBtn.disabled = true;
+  status.textContent = "Сэргээж байна…";
+
+  try {
+    const res = await adminFetch("/.netlify/functions/restore-order-page", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: order.id, pageIndex }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Сэргээхэд алдаа гарлаа.");
+
+    imgWrap.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = data.imageBase64;
+    imgWrap.appendChild(img);
+
+    status.textContent = "✓ Сэргээгдлээ";
+  } catch (err) {
+    status.textContent = `Алдаа: ${err.message}`;
+  } finally {
+    restoreBtn.disabled = false;
   }
 }
 

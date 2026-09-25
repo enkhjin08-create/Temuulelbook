@@ -10,7 +10,7 @@
 const { getStore } = require("@netlify/blobs");
 const { checkAdminPin } = require("./_admin-auth");
 const { sendEmail } = require("./_email");
-const { saveOrderImage } = require("./_order-images");
+const { saveOrderImage, getOrderImagesStore } = require("./_order-images");
 
 function getOrdersStore() {
   const siteID = process.env.BLOBS_SITE_ID;
@@ -49,13 +49,35 @@ exports.handler = async (event) => {
     }
     const order = JSON.parse(raw);
 
-    // Зургийг тусад нь Blobs-д хадгалж, зөвхөн key-г л order-д үлдээнэ
-    const imageKey = `${id}:page${pageIndex}`;
-    await saveOrderImage(imageKey, imageBase64);
-
     // Хэрэв тухайн pageIndex аль хэдийн байгаа бол шинэчилнэ, үгүй бол нэмнэ
     const existingIdx = order.generatedPages.findIndex((p) => p.pageIndex === pageIndex);
-    const pageEntry = { pageIndex, imageKey, caption: caption || "" };
+    const imageKey = `${id}:page${pageIndex}`;
+
+    // Дахин зурж байгаа (өмнө нь энэ хуудас generate хийгдсэн) бол, шинэ
+    // зургаар дарж бичихээсээ өмнө хуучин зургийг "prev" key рүү хадгалж,
+    // хожим "Өмнөх зургийг сэргээх" боломжийг олгоно.
+    let hasPrevious = false;
+    if (existingIdx >= 0) {
+      try {
+        const imagesStore = getOrderImagesStore();
+        const [oldData, oldMeta] = await Promise.all([
+          imagesStore.get(imageKey),
+          imagesStore.getMetadata(imageKey),
+        ]);
+        if (oldData) {
+          const oldMimeType = (oldMeta && oldMeta.metadata && oldMeta.metadata.mimeType) || "image/jpeg";
+          await imagesStore.set(`${imageKey}:prev`, oldData, { metadata: { mimeType: oldMimeType } });
+          hasPrevious = true;
+        }
+      } catch (backupErr) {
+        console.error("Previous-image backup failed (continuing anyway):", backupErr);
+      }
+    }
+
+    // Зургийг тусад нь Blobs-д хадгалж, зөвхөн key-г л order-д үлдээнэ
+    await saveOrderImage(imageKey, imageBase64);
+
+    const pageEntry = { pageIndex, imageKey, caption: caption || "", hasPrevious };
     if (existingIdx >= 0) {
       order.generatedPages[existingIdx] = pageEntry;
     } else {
@@ -96,7 +118,7 @@ exports.handler = async (event) => {
       }).catch(() => {});
     }
 
-    return respond(200, { ok: true, status: order.status, pageCount: order.generatedPages.length });
+    return respond(200, { ok: true, status: order.status, pageCount: order.generatedPages.length, hasPrevious });
   } catch (err) {
     console.error("append-order-page error:", err);
     return respond(500, { error: String(err && err.message ? err.message : err) });
