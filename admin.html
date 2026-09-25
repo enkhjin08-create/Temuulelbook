@@ -418,6 +418,12 @@
   }
   .btn-page-restore:hover { background: var(--cream-2); }
   .btn-page-restore:disabled { opacity: 0.5; cursor: not-allowed; }
+  .page-edit-file-input {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    display: block;
+    margin-bottom: 8px;
+  }
   .page-edit-status {
     font-size: 12px;
     color: var(--plum-soft);
@@ -789,6 +795,23 @@ function renderOrderDetail(order) {
     </div>
 
     <div class="pattern-card">
+      <h3 class="pattern-card-title">🧒 Хүүхдийн эх зураг (reference)</h3>
+      <div class="pattern-card-body">
+        <div class="page-edit-image pattern-image" id="originalPhotoImgWrap">
+          ${order.originalPhotoKey ? "" : '<div class="page-edit-placeholder">Эх зураг алга</div>'}
+        </div>
+        <div class="page-edit-body">
+          <p class="page-edit-hint">Захиалагчийн илгээсэн зураг муу чанартай эсвэл царай тод харагдахгүй бол, доор өөр зураг оруулж болно. Оруулсны дараа 1-р хуудсыг "Дахин зурах" дарж шинэ эх зургаар дахин зурна уу.</p>
+          <input type="file" accept="image/*" id="originalPhotoFileInput" class="page-edit-file-input" />
+          <div class="page-edit-actions">
+            <button class="btn-page-generate" id="originalPhotoUploadBtn" disabled>⬆ Шинэ зураг оруулах</button>
+            <span class="page-edit-status" id="originalPhotoStatus"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pattern-card">
       <h3 class="pattern-card-title">📐 Хавтасны хээ (номоо нээнгүүт харагдах)</h3>
       <div class="pattern-card-body">
         <div class="page-edit-image pattern-image" id="patternImgWrap">
@@ -853,6 +876,101 @@ function renderOrderDetail(order) {
 
     <div class="page-edit-list" id="orderPagesList"></div>
   `;
+
+  if (order.originalPhotoKey) {
+    const originalPhotoImgWrap = document.getElementById("originalPhotoImgWrap");
+    const img = document.createElement("img");
+    loadOrderImageInto(img, order.originalPhotoKey);
+    originalPhotoImgWrap.appendChild(img);
+  }
+
+  const originalPhotoFileInput = document.getElementById("originalPhotoFileInput");
+  const originalPhotoUploadBtn = document.getElementById("originalPhotoUploadBtn");
+  let selectedOriginalPhotoDataUrl = null;
+
+  originalPhotoFileInput.addEventListener("change", () => {
+    const file = originalPhotoFileInput.files && originalPhotoFileInput.files[0];
+    const status = document.getElementById("originalPhotoStatus");
+    if (!file) {
+      selectedOriginalPhotoDataUrl = null;
+      originalPhotoUploadBtn.disabled = true;
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      status.textContent = "Зөвхөн зургийн файл сонгоно уу.";
+      selectedOriginalPhotoDataUrl = null;
+      originalPhotoUploadBtn.disabled = true;
+      return;
+    }
+    status.textContent = "";
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const maxDim = 1024;
+        if (width > height && width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        selectedOriginalPhotoDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        originalPhotoUploadBtn.disabled = false;
+      };
+      img.onerror = () => {
+        status.textContent = "Зургийг уншихад алдаа гарлаа.";
+      };
+      img.src = reader.result;
+    };
+    reader.onerror = () => {
+      status.textContent = "Зургийг уншихад алдаа гарлаа.";
+    };
+    reader.readAsDataURL(file);
+  });
+
+  originalPhotoUploadBtn.addEventListener("click", async () => {
+    const status = document.getElementById("originalPhotoStatus");
+    if (!selectedOriginalPhotoDataUrl) return;
+
+    originalPhotoUploadBtn.disabled = true;
+    const originalBtnText = originalPhotoUploadBtn.textContent;
+    originalPhotoUploadBtn.textContent = "Оруулж байна…";
+    status.textContent = "";
+
+    try {
+      const res = await adminFetch("/.netlify/functions/set-order-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: order.id, photoBase64: selectedOriginalPhotoDataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Зураг оруулахад алдаа гарлаа.");
+
+      order.originalPhotoKey = data.originalPhotoKey;
+
+      const originalPhotoImgWrap = document.getElementById("originalPhotoImgWrap");
+      originalPhotoImgWrap.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = selectedOriginalPhotoDataUrl;
+      originalPhotoImgWrap.appendChild(img);
+
+      status.textContent = "✓ Шинэ эх зураг хадгалагдлаа. Одоо 1-р хуудсыг дахин зурна уу.";
+      originalPhotoFileInput.value = "";
+      selectedOriginalPhotoDataUrl = null;
+      originalPhotoUploadBtn.textContent = originalBtnText;
+      originalPhotoUploadBtn.disabled = true;
+    } catch (err) {
+      status.textContent = `Алдаа: ${err.message}`;
+      originalPhotoUploadBtn.textContent = originalBtnText;
+      originalPhotoUploadBtn.disabled = false;
+    }
+  });
 
   if (order.patternImageKey) {
     const patternImgWrap = document.getElementById("patternImgWrap");
