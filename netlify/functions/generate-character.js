@@ -19,6 +19,7 @@ const { buildPagePrompt } = require("./stories");
 const { getStore } = require("@netlify/blobs");
 const { checkRateLimit, incrementRateLimit } = require("./_rate-limit");
 const { claimOrWaitForRequest, markDone, markError } = require("./_idempotency");
+const { compressToJpeg } = require("./_image-compress");
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent";
@@ -118,7 +119,7 @@ exports.handler = async (event) => {
           responseModalities: ["TEXT", "IMAGE"],
           imageConfig: {
             aspectRatio: "1:1",
-            imageSize: "1K",
+            imageSize: "2K",
           },
         },
       }),
@@ -146,8 +147,13 @@ exports.handler = async (event) => {
       });
     }
 
-    const outMime = imagePart.inlineData.mimeType || "image/png";
-    const outData = imagePart.inlineData.data;
+    const rawOutMime = imagePart.inlineData.mimeType || "image/png";
+    const rawOutData = imagePart.inlineData.data;
+
+    // PNG-г JPEG рүү хөрвүүлж хэмжээг эрс багасгана (Netlify Function-ийн
+    // синхрон хариултын хэмжээний хязгаараас давахаас сэргийлнэ) — нягтрал
+    // хэвээр үлдэнэ, зөвхөн шахалт нэмэгдэнэ.
+    const { mimeType: outMime, data: outData } = await compressToJpeg(rawOutMime, rawOutData);
 
     // Generate хийсэн зургийг (эх reference зурагтай нь хамт) gallery-д
     // хадгална (алдаа гарвал ч гол хариуг тасалдуулахгүй — зөвхөн log-д

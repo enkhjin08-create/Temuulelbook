@@ -13,6 +13,7 @@
 const { buildBackpagePrompt } = require("./stories");
 const { checkAdminPin } = require("./_admin-auth");
 const { claimOrWaitForRequest, markDone, markError } = require("./_idempotency");
+const { compressToJpeg } = require("./_image-compress");
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent";
@@ -69,7 +70,7 @@ exports.handler = async (event) => {
           responseModalities: ["TEXT", "IMAGE"],
           imageConfig: {
             aspectRatio: "1:1",
-            imageSize: "1K",
+            imageSize: "2K",
           },
         },
       }),
@@ -97,8 +98,9 @@ exports.handler = async (event) => {
       });
     }
 
-    const outMime = imagePart.inlineData.mimeType || "image/png";
-    const outData = imagePart.inlineData.data;
+    const rawOutMime = imagePart.inlineData.mimeType || "image/png";
+    const rawOutData = imagePart.inlineData.data;
+    const { mimeType: outMime, data: outData } = await compressToJpeg(rawOutMime, rawOutData);
 
     const result = { imageBase64: `data:${outMime};base64,${outData}` };
     await markDone(requestId, result);
