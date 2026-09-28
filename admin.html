@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Зөвхөн Түүнд Kids Book — Admin</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @font-face {
+    font-family: "IsamiRi Display";
+    src: url("/fonts/IsamiRiDisplayRegular.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: block;
+  }
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;1,600&display=swap">
@@ -870,6 +880,8 @@ function renderOrderDetail(order) {
       <p class="generate-all-progress" id="generateAllProgress"></p>
       <button type="button" class="btn-download-all" id="downloadAllBtn">⬇ Бүх зургийг татах (ZIP)</button>
       <p class="generate-all-progress" id="downloadAllProgress"></p>
+      <button type="button" class="btn-download-all" id="downloadPrintPdfBtn">🖨 Хэвлэх PDF татах</button>
+      <p class="generate-all-progress" id="downloadPrintPdfProgress"></p>
       <button type="button" class="btn-restart-pages" id="restartPagesBtn">↺ Бусад хуудсыг дахин эхлэх</button>
       <p class="generate-all-progress" id="restartPagesProgress"></p>
     </div>
@@ -1032,6 +1044,7 @@ function renderOrderDetail(order) {
 
   document.getElementById("generateAllBtn").addEventListener("click", () => generateAllRemaining(order));
   document.getElementById("downloadAllBtn").addEventListener("click", () => downloadAllImages(order));
+  document.getElementById("downloadPrintPdfBtn").addEventListener("click", () => downloadPrintPdf(order));
   document.getElementById("restartPagesBtn").addEventListener("click", () => restartOtherPages(order));
 }
 
@@ -1634,6 +1647,307 @@ async function downloadAllImages(order) {
 
     progress.textContent = "✓ Татагдлаа";
   } catch (err) {
+    progress.textContent = `Алдаа: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+// ==================== Хэвлэлийн PDF (нэг товчлуур) ====================
+//
+// tanhil2.psd загвар файлаас хэмжсэн яг тэр байрлал/хэмжээ (px, 300dpi,
+// canvas 4961x3508) болон admin.html-ийн "🖨 Хэвлэлийн зохион байгуулалт"
+// хэсэгт бичигдсэн яг тэр 5 хуудас/урд-ар талын дараалал ашиглан, browser
+// дотор Canvas-аар зохион байгуулж, jsPDF-ээр нэг PDF болгож татна.
+// (print-tools/build_print_pdf.py Python скриптийн адил логик, гэхдээ
+// admin.html дотор шууд ажиллах тул Python суулгах шаардлагагүй.)
+
+const PRINT_CANVAS_SIZE = { w: 4961, h: 3508 };
+const PRINT_LEFT_PANEL = { x0: 296, y0: 691, x1: 2484, y1: 2879 };
+const PRINT_RIGHT_PANEL = { x0: 2483, y0: 691, x1: 4669, y1: 2877 };
+const PRINT_PAGE10_IMAGE_RECT = { x0: 302, y0: 691, x1: 2478, y1: 2867 };
+const PRINT_PAGE10_TEXT_CENTER_Y = 1060;
+const PRINT_PAGE10_TEXT_MAX_WIDTH = 1900;
+
+const PRINT_CAPTION_CENTER_Y = 1751;
+const PRINT_CAPTION_MAX_WIDTH = 1850;
+const PRINT_CAPTION_MAX_HEIGHT = 620;
+const PRINT_CAPTION_MAX_FONT_SIZE = 60; // px (~pt, 1px≈1pt-тэй ойролцоо canvas дээр)
+const PRINT_CAPTION_MIN_FONT_SIZE = 24;
+const PRINT_TEXT_COLOR = "#2E2247";
+
+const PRINT_DEDICATION_MAX_WIDTH = 1450;
+const PRINT_DEDICATION_MAX_HEIGHT = 500;
+const PRINT_DEDICATION_MAX_FONT_SIZE = 46;
+const PRINT_DEDICATION_MIN_FONT_SIZE = 20;
+
+const PRINT_STROKE_COLOR = "#FFFFFF";
+const PRINT_STROKE_WIDTH_RATIO = 0.06;
+const PRINT_FONT_FAMILY = "IsamiRi Display";
+
+// admin.html-ийн "🖨 Хэвлэлийн зохион байгуулалт" хэсэгтэй яг тохирсон
+// 5 хуудас (sheet) / урд-ар талын дараалал.
+const PRINT_SHEET_LAYOUT = [
+  { id: "s1-1", front: ["text_6", "cover"], back: ["text_1", "image_5"] },
+  { id: "s1-2", front: ["text_5", "image_1"], back: ["text_2", "image_4"] },
+  { id: "s1-3", front: ["text_4", "image_2"], back: ["text_3", "image_3"] },
+  { id: "s2-1", front: ["combined_10", "image_6"], back: ["text_7", "image_9"] },
+  { id: "s2-2", front: ["text_9", "image_7"], back: ["text_8", "image_8"] },
+];
+
+let _printFontLoaded = false;
+async function ensurePrintFontLoaded() {
+  if (_printFontLoaded) return;
+  try {
+    await document.fonts.load(`60px "${PRINT_FONT_FAMILY}"`);
+    await document.fonts.ready;
+  } catch (e) {
+    console.error("Print font load failed, will fall back to default font:", e);
+  }
+  _printFontLoaded = true;
+}
+
+function printLoadImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+// CSS-ийн object-fit:cover-той адил — src зургийг box дотор бүрэн дүүргэж,
+// төвөөс тайрч зурна.
+function printDrawCover(ctx, img, x0, y0, w, h) {
+  const scale = Math.max(w / img.width, h / img.height);
+  const newW = img.width * scale;
+  const newH = img.height * scale;
+  const dx = x0 - (newW - w) / 2;
+  const dy = y0 - (newH - h) / 2;
+  ctx.drawImage(img, dx, dy, newW, newH);
+}
+
+function printWrapText(ctx, text, maxWidth) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const trial = (current + " " + word).trim();
+    if (ctx.measureText(trial).width <= maxWidth || !current) {
+      current = trial;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+// Текстийг төвд нь, цагаан stroke-той зурна — багтахгүй бол фонтын
+// хэмжээг автоматаар багасгана.
+function printDrawCenteredText(ctx, text, centerX, centerY, maxWidth, maxHeight, maxFontSize, minFontSize) {
+  if (!text) return;
+
+  let fontSize = maxFontSize;
+  let lines = [];
+  let lineHeight = 0;
+  let totalHeight = 0;
+  let strokeWidth = 0;
+
+  while (fontSize >= minFontSize) {
+    ctx.font = `${fontSize}px "${PRINT_FONT_FAMILY}", sans-serif`;
+    strokeWidth = Math.max(1, Math.round(fontSize * PRINT_STROKE_WIDTH_RATIO));
+    lines = printWrapText(ctx, text, maxWidth - 2 * strokeWidth);
+    lineHeight = Math.round(fontSize * 1.3);
+    totalHeight = lineHeight * lines.length;
+    const widest = Math.max(0, ...lines.map((ln) => ctx.measureText(ln).width + 2 * strokeWidth));
+    if (widest <= maxWidth && totalHeight <= maxHeight) break;
+    fontSize -= 2;
+  }
+  if (fontSize < minFontSize) {
+    fontSize = minFontSize;
+    ctx.font = `${fontSize}px "${PRINT_FONT_FAMILY}", sans-serif`;
+    strokeWidth = Math.max(1, Math.round(fontSize * PRINT_STROKE_WIDTH_RATIO));
+    lines = printWrapText(ctx, text, maxWidth - 2 * strokeWidth);
+    lineHeight = Math.round(fontSize * 1.3);
+    totalHeight = lineHeight * lines.length;
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
+
+  let y = centerY - totalHeight / 2 + lineHeight / 2;
+  for (const line of lines) {
+    ctx.lineWidth = strokeWidth * 2;
+    ctx.strokeStyle = PRINT_STROKE_COLOR;
+    ctx.strokeText(line, centerX, y);
+    ctx.fillStyle = PRINT_TEXT_COLOR;
+    ctx.fillText(line, centerX, y);
+    y += lineHeight;
+  }
+}
+
+async function buildPrintPanels(order, onProgress) {
+  const panels = {};
+  const sortedPages = order.generatedPages.slice().sort((a, b) => a.pageIndex - b.pageIndex);
+  const captionByNumber = {};
+  sortedPages.forEach((p) => {
+    captionByNumber[p.pageIndex + 1] = p.caption || "";
+  });
+
+  const pageImages = {};
+  for (const p of sortedPages) {
+    onProgress(`${p.pageIndex + 1}-р хуудасны зургийг ачааллаж байна…`);
+    const dataUrl = await fetchOrderImageDataUrl(p.imageKey);
+    pageImages[p.pageIndex + 1] = await printLoadImage(dataUrl);
+  }
+
+  let backgroundImg = null;
+  if (order.backgroundImageKey) {
+    onProgress("Дэвсгэр зургийг ачааллаж байна…");
+    const dataUrl = await fetchOrderImageDataUrl(order.backgroundImageKey);
+    backgroundImg = await printLoadImage(dataUrl);
+  }
+
+  const leftW = PRINT_LEFT_PANEL.x1 - PRINT_LEFT_PANEL.x0;
+  const leftH = PRINT_LEFT_PANEL.y1 - PRINT_LEFT_PANEL.y0;
+  const rightW = PRINT_RIGHT_PANEL.x1 - PRINT_RIGHT_PANEL.x0;
+  const rightH = PRINT_RIGHT_PANEL.y1 - PRINT_RIGHT_PANEL.y0;
+
+  // --- 1-9-р хуудсуудын текст-панель (зүүн тал) ---
+  for (let n = 1; n <= 9; n++) {
+    const canvas = document.createElement("canvas");
+    canvas.width = leftW;
+    canvas.height = leftH;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, leftW, leftH);
+    if (backgroundImg) printDrawCover(ctx, backgroundImg, 0, 0, leftW, leftH);
+    printDrawCenteredText(
+      ctx, captionByNumber[n] || "", leftW / 2, PRINT_CAPTION_CENTER_Y - PRINT_LEFT_PANEL.y0,
+      PRINT_CAPTION_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, PRINT_CAPTION_MAX_FONT_SIZE, PRINT_CAPTION_MIN_FONT_SIZE
+    );
+    panels[`text_${n}`] = canvas;
+  }
+
+  // --- 1-9-р хуудсуудын зураг-панель (баруун тал) ---
+  for (let n = 1; n <= 9; n++) {
+    const canvas = document.createElement("canvas");
+    canvas.width = rightW;
+    canvas.height = rightH;
+    const ctx = canvas.getContext("2d");
+    printDrawCover(ctx, pageImages[n], 0, 0, rightW, rightH);
+    panels[`image_${n}`] = canvas;
+  }
+
+  // --- 10-р хуудас: зураг + текст нэг талд хамт ---
+  {
+    const canvas = document.createElement("canvas");
+    canvas.width = leftW;
+    canvas.height = leftH;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, leftW, leftH);
+    const iw = PRINT_PAGE10_IMAGE_RECT.x1 - PRINT_PAGE10_IMAGE_RECT.x0;
+    const ih = PRINT_PAGE10_IMAGE_RECT.y1 - PRINT_PAGE10_IMAGE_RECT.y0;
+    printDrawCover(
+      ctx, pageImages[10],
+      PRINT_PAGE10_IMAGE_RECT.x0 - PRINT_LEFT_PANEL.x0, PRINT_PAGE10_IMAGE_RECT.y0 - PRINT_LEFT_PANEL.y0,
+      iw, ih
+    );
+    printDrawCenteredText(
+      ctx, captionByNumber[10] || "", leftW / 2, PRINT_PAGE10_TEXT_CENTER_Y - PRINT_LEFT_PANEL.y0,
+      PRINT_PAGE10_TEXT_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, PRINT_CAPTION_MAX_FONT_SIZE, PRINT_CAPTION_MIN_FONT_SIZE
+    );
+    panels["combined_10"] = canvas;
+  }
+
+  // --- Нүүр хуудас: 1-р хуудасны зураг дээр зориулалтын бичвэр ---
+  {
+    const canvas = document.createElement("canvas");
+    canvas.width = rightW;
+    canvas.height = rightH;
+    const ctx = canvas.getContext("2d");
+    printDrawCover(ctx, pageImages[1], 0, 0, rightW, rightH);
+    printDrawCenteredText(
+      ctx, order.coverDedication || "", rightW / 2, Math.round(rightH * 0.62),
+      PRINT_DEDICATION_MAX_WIDTH, PRINT_DEDICATION_MAX_HEIGHT, PRINT_DEDICATION_MAX_FONT_SIZE, PRINT_DEDICATION_MIN_FONT_SIZE
+    );
+    panels["cover"] = canvas;
+  }
+
+  return panels;
+}
+
+function composePrintSide(panels, leftKey, rightKey) {
+  const canvas = document.createElement("canvas");
+  canvas.width = PRINT_CANVAS_SIZE.w;
+  canvas.height = PRINT_CANVAS_SIZE.h;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(panels[leftKey], PRINT_LEFT_PANEL.x0, PRINT_LEFT_PANEL.y0);
+  ctx.drawImage(panels[rightKey], PRINT_RIGHT_PANEL.x0, PRINT_RIGHT_PANEL.y0);
+  return canvas;
+}
+
+async function downloadPrintPdf(order) {
+  const btn = document.getElementById("downloadPrintPdfBtn");
+  const progress = document.getElementById("downloadPrintPdfProgress");
+
+  const requiredPages = order.storyPages.length;
+  if (!order.generatedPages || order.generatedPages.length < requiredPages) {
+    progress.textContent = "Эхлээд бүх хуудсыг зурна уу (10 хуудас шаардлагатай).";
+    return;
+  }
+  if (!window.jspdf) {
+    progress.textContent = "PDF сан ачаалагдсангүй — хуудсаа дахин ачаална уу.";
+    return;
+  }
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = "Бэлдэж байна…";
+  progress.textContent = "";
+
+  try {
+    progress.textContent = "Фонт ачааллаж байна…";
+    await ensurePrintFontLoaded();
+
+    const panels = await buildPrintPanels(order, (msg) => {
+      progress.textContent = msg;
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pageWidthMm = (PRINT_CANVAS_SIZE.w / 300) * 25.4;
+    const pageHeightMm = (PRINT_CANVAS_SIZE.h / 300) * 25.4;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [pageWidthMm, pageHeightMm] });
+
+    let first = true;
+    for (const sheet of PRINT_SHEET_LAYOUT) {
+      progress.textContent = `${sheet.id} хуудсыг угсарч байна…`;
+      const frontCanvas = composePrintSide(panels, sheet.front[0], sheet.front[1]);
+      const backCanvas = composePrintSide(panels, sheet.back[0], sheet.back[1]);
+
+      if (!first) pdf.addPage([pageWidthMm, pageHeightMm], "landscape");
+      pdf.addImage(frontCanvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageWidthMm, pageHeightMm);
+      first = false;
+
+      pdf.addPage([pageWidthMm, pageHeightMm], "landscape");
+      pdf.addImage(backCanvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageWidthMm, pageHeightMm);
+    }
+
+    progress.textContent = "PDF файл татаж байна…";
+    const safeChildName = (order.childName || "order").replace(/[^a-zA-Zа-яА-ЯёЁ0-9]+/g, "_");
+    pdf.save(`${safeChildName}-${order.orderNumber || order.id}-print-ready.pdf`);
+
+    progress.textContent = "✓ Бэлэн боллоо";
+  } catch (err) {
+    console.error("downloadPrintPdf error:", err);
     progress.textContent = `Алдаа: ${err.message}`;
   } finally {
     btn.disabled = false;
