@@ -2093,13 +2093,16 @@ async function buildPrintPanels(order, onProgress) {
     panels["combined_10"] = canvas;
   }
 
-  // --- Нүүр хуудас: 1-р хуудасны зураг дээр зориулалтын бичвэр ---
+  // --- Нүүр хуудас: текст-хуудсуудын ард байдаг дэвсгэр зураг дээр
+  // зориулалтын бичвэр (1-р хуудасны зураг биш) ---
   {
     const canvas = document.createElement("canvas");
     canvas.width = rightW;
     canvas.height = rightH;
     const ctx = canvas.getContext("2d");
-    printDrawCover(ctx, pageImages[1], 0, 0, rightW, rightH);
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, rightW, rightH);
+    if (backgroundImg) printDrawCover(ctx, backgroundImg, 0, 0, rightW, rightH);
     {
       const fs = getDedicationFontSizes();
       printDrawCenteredText(
