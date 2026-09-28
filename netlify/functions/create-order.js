@@ -82,6 +82,9 @@ exports.handler = async (event) => {
   if (!contactAddress || typeof contactAddress !== "string") {
     return respond(400, { error: "Хүргэлтийн хаяг оруулна уу." });
   }
+  if (!coverDedication || typeof coverDedication !== "string" || !coverDedication.trim()) {
+    return respond(400, { error: "Нүүр хуудсанд бичих зориулалтын үгээ оруулна уу." });
+  }
 
   try {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

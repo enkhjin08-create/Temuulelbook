@@ -408,6 +408,13 @@ orderForm.addEventListener("submit", async (e) => {
   const address = orderAddressInput.value.trim();
   if (!address) { orderAddressInput.focus(); return; }
 
+  const dedication = orderDedicationInput.value.trim();
+  if (!dedication) {
+    alert("Нүүр хуудсанд бичих зориулалтын үгээ оруулна уу. Энэ талбар хуудасны зохион байгуулалтад шаардлагатай тул заавал байх ёстой.");
+    orderDedicationInput.focus();
+    return;
+  }
+
   orderSubmitBtn.disabled = true;
   orderSubmitBtn.textContent = "Илгээж байна…";
 
@@ -427,7 +434,7 @@ orderForm.addEventListener("submit", async (e) => {
         contactPhone: phone,
         contactAddress: address,
         contactNote: orderNoteInput.value.trim(),
-        coverDedication: orderDedicationInput.value.trim(),
+        coverDedication: dedication,
         promoCode: appliedPromoCode || undefined,
       }),
     });

@@ -831,7 +831,14 @@ function renderOrderDetail(order) {
         <h2 style="font-family:var(--font-display);margin:0 0 4px;color:var(--plum);">${escapeHtml(order.childName)} — ${escapeHtml(order.storyTitle || "")}</h2>
         <p style="margin:0 0 6px;font-weight:700;color:var(--coral);">Захиалгын дугаар: #${escapeHtml(order.orderNumber || "")}</p>
         ${order.paymentClaimedAt ? `<p style="margin:0 0 6px;font-size:12.5px;color:#2f6b2a;">💰 Захиалагч төлбөр төлсөн гэж мэдэгдсэн (${formatDate(order.paymentClaimedAt)})</p>` : ""}
-        ${order.coverDedication ? `<p style="margin:0 0 6px;font-size:13px;background:var(--cream);border-radius:8px;padding:8px 12px;color:var(--plum);"><b>📝 Нүүр хуудасны бичвэр:</b> ${escapeHtml(order.coverDedication)}</p>` : ""}
+        <div style="margin:0 0 10px;background:var(--cream);border-radius:8px;padding:8px 12px;">
+          <label style="display:block;font-size:12px;font-weight:700;color:var(--plum);margin-bottom:4px;">📝 Нүүр хуудасны зориулалтын үг ${order.coverDedication ? "" : "<span style=\"color:var(--coral);\">(хоосон — PDF татахын өмнө нөхнө үү)</span>"}</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="coverDedicationInput" value="${escapeHtml(order.coverDedication || "")}" placeholder="Жишээ: Хайрт хүү Аюушдаа зориулав" maxlength="150" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid #ddd;font-size:13px;" />
+            <button class="btn-small" id="saveDedicationBtn">Хадгалах</button>
+          </div>
+          <p id="dedicationSaveStatus" style="margin:4px 0 0;font-size:12px;color:#2f6b2a;"></p>
+        </div>
         <span class="order-status-badge status-${order.status}">${STATUS_LABELS[order.status] || order.status}</span>
       </div>
       <div class="order-detail-actions">
@@ -1112,6 +1119,39 @@ function renderOrderDetail(order) {
   document.getElementById("downloadPrintPdfBtn").addEventListener("click", () => downloadPrintPdf(order));
   wirePrintTextSettings(order);
   document.getElementById("restartPagesBtn").addEventListener("click", () => restartOtherPages(order));
+
+  const saveDedicationBtn = document.getElementById("saveDedicationBtn");
+  const dedicationSaveStatus = document.getElementById("dedicationSaveStatus");
+  if (saveDedicationBtn) {
+    saveDedicationBtn.addEventListener("click", async () => {
+      const input = document.getElementById("coverDedicationInput");
+      const value = input.value.trim();
+      if (!value) {
+        dedicationSaveStatus.style.color = "var(--coral)";
+        dedicationSaveStatus.textContent = "Хоосон байж болохгүй — PDF хэвлэхэд шаардлагатай.";
+        return;
+      }
+      saveDedicationBtn.disabled = true;
+      dedicationSaveStatus.style.color = "#2f6b2a";
+      dedicationSaveStatus.textContent = "Хадгалж байна…";
+      try {
+        const res = await adminFetch("/.netlify/functions/set-order-dedication", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: order.id, coverDedication: value }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Алдаа гарлаа");
+        order.coverDedication = data.coverDedication;
+        dedicationSaveStatus.textContent = "✓ Хадгалагдлаа.";
+      } catch (err) {
+        dedicationSaveStatus.style.color = "var(--coral)";
+        dedicationSaveStatus.textContent = `Алдаа: ${err.message}`;
+      } finally {
+        saveDedicationBtn.disabled = false;
+      }
+    });
+  }
 }
 
 // ---------- хавтасны хээ ----------
@@ -2064,6 +2104,10 @@ async function downloadPrintPdf(order) {
   }
   if (!window.jspdf) {
     progress.textContent = "PDF сан ачаалагдсангүй — хуудсаа дахин ачаална уу.";
+    return;
+  }
+  if (!order.coverDedication || !order.coverDedication.trim()) {
+    progress.textContent = "⚠️ Нүүр хуудасны зориулалтын үг хоосон байна — хуудасны зохион байгуулалт алдагдахгүйн тулд доорх талбарт бичээд, дараа нь PDF татна уу.";
     return;
   }
 
