@@ -263,6 +263,53 @@
     height: 105px;
   }
 
+  .print-text-settings-card {
+    margin-top: 20px;
+    padding: 16px;
+    background: var(--cream);
+    border-radius: var(--radius-md);
+  }
+  .print-text-settings-body {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .print-text-settings-controls {
+    flex: 1 1 260px;
+    min-width: 220px;
+  }
+  .print-text-settings-row {
+    display: block;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--plum);
+    margin-bottom: 14px;
+  }
+  .print-text-settings-row input[type="range"] {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+  }
+  .print-text-settings-row input[type="color"] {
+    display: block;
+    margin-top: 6px;
+    width: 60px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .print-preview-canvas {
+    width: 260px;
+    height: 260px;
+    background: white;
+    border-radius: var(--radius-sm, 8px);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    flex: 0 0 auto;
+  }
+
   .generate-all-area {
     margin-top: 20px;
     padding: 16px;
@@ -875,6 +922,24 @@ function renderOrderDetail(order) {
       </div>
     </div>
 
+    <div class="print-text-settings-card">
+      <h3 class="pattern-card-title">🖋 Хэвлэлийн текстийн загвар</h3>
+      <div class="print-text-settings-body">
+        <div class="print-text-settings-controls">
+          <label class="print-text-settings-row">
+            Фонтын хэмжээ: <span id="printFontSizeValue">60</span>px
+            <input type="range" id="printFontSizeInput" min="24" max="90" step="1" value="60" />
+          </label>
+          <label class="print-text-settings-row">
+            Текстийн өнгө:
+            <input type="color" id="printTextColorInput" value="#2e2247" />
+          </label>
+          <p class="page-edit-hint">Доорх preview нь каптионы яг тэр хэмжээ/өнгөөр хэрхэн харагдахыг үзүүлнэ. Эндээс сонгосон тохиргоо "🖨 Хэвлэх PDF татах"-аар үүсэх эцсийн PDF-д шууд орно.</p>
+        </div>
+        <canvas id="printPreviewCanvas" class="print-preview-canvas"></canvas>
+      </div>
+    </div>
+
     <div class="generate-all-area">
       <button type="button" class="btn-generate-all" id="generateAllBtn">✨ Бүх үлдсэн хуудсыг автоматаар зурах</button>
       <p class="generate-all-progress" id="generateAllProgress"></p>
@@ -1045,6 +1110,7 @@ function renderOrderDetail(order) {
   document.getElementById("generateAllBtn").addEventListener("click", () => generateAllRemaining(order));
   document.getElementById("downloadAllBtn").addEventListener("click", () => downloadAllImages(order));
   document.getElementById("downloadPrintPdfBtn").addEventListener("click", () => downloadPrintPdf(order));
+  wirePrintTextSettings(order);
   document.getElementById("restartPagesBtn").addEventListener("click", () => restartOtherPages(order));
 }
 
@@ -1673,18 +1739,31 @@ const PRINT_PAGE10_TEXT_MAX_WIDTH = 1900;
 const PRINT_CAPTION_CENTER_Y = 1751;
 const PRINT_CAPTION_MAX_WIDTH = 1850;
 const PRINT_CAPTION_MAX_HEIGHT = 620;
-const PRINT_CAPTION_MAX_FONT_SIZE = 60; // px (~pt, 1px≈1pt-тэй ойролцоо canvas дээр)
-const PRINT_CAPTION_MIN_FONT_SIZE = 24;
-const PRINT_TEXT_COLOR = "#2E2247";
 
 const PRINT_DEDICATION_MAX_WIDTH = 1450;
 const PRINT_DEDICATION_MAX_HEIGHT = 500;
-const PRINT_DEDICATION_MAX_FONT_SIZE = 46;
-const PRINT_DEDICATION_MIN_FONT_SIZE = 20;
 
 const PRINT_STROKE_COLOR = "#FFFFFF";
 const PRINT_STROKE_WIDTH_RATIO = 0.06;
 const PRINT_FONT_FAMILY = "IsamiRi Display";
+
+// Admin товчлууруудаар өөрчлөгддөг фонтын хэмжээ/өнгө (⚙ Хэвлэлийн
+// текстийн загвар хэсгээс). Каптион нь энэ хэмжээгээр, зориулалтын текст
+// нь бага зэрэг жижигээр (харьцаагаар) зурагдана.
+const PRINT_TEXT_SETTINGS = {
+  fontSize: 60,
+  color: "#2E2247",
+};
+
+function getCaptionFontSizes() {
+  const max = PRINT_TEXT_SETTINGS.fontSize;
+  return { max, min: Math.max(18, Math.round(max * 0.4)) };
+}
+
+function getDedicationFontSizes() {
+  const max = Math.round(PRINT_TEXT_SETTINGS.fontSize * 0.77);
+  return { max, min: Math.max(14, Math.round(max * 0.43)) };
+}
 
 // admin.html-ийн "🖨 Хэвлэлийн зохион байгуулалт" хэсэгтэй яг тохирсон
 // 5 хуудас (sheet) / урд-ар талын дараалал.
@@ -1715,6 +1794,76 @@ function printLoadImage(dataUrl) {
     img.onerror = reject;
     img.src = dataUrl;
   });
+}
+
+// ---------- ⚙ Хэвлэлийн текстийн загвар — preview ----------
+
+const _printPreviewBgCache = {}; // orderId -> Image | null (дэвсгэр зураггүй бол null)
+
+async function getPrintPreviewBackground(order) {
+  if (order.id in _printPreviewBgCache) return _printPreviewBgCache[order.id];
+  let img = null;
+  if (order.backgroundImageKey) {
+    try {
+      const dataUrl = await fetchOrderImageDataUrl(order.backgroundImageKey);
+      img = await printLoadImage(dataUrl);
+    } catch (e) {
+      console.error("Preview background load failed:", e);
+    }
+  }
+  _printPreviewBgCache[order.id] = img;
+  return img;
+}
+
+async function renderPrintPreview(order) {
+  const canvas = document.getElementById("printPreviewCanvas");
+  if (!canvas) return;
+
+  await ensurePrintFontLoaded();
+
+  const size = PRINT_LEFT_PANEL.x1 - PRINT_LEFT_PANEL.x0; // квадрат панель — 2188px
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#EFE9DD";
+  ctx.fillRect(0, 0, size, size);
+
+  const bgImg = await getPrintPreviewBackground(order);
+  if (bgImg) printDrawCover(ctx, bgImg, 0, 0, size, size);
+
+  const sampleCaption =
+    (order.generatedPages && order.generatedPages[0] && order.generatedPages[0].caption) ||
+    (order.storyPages && order.storyPages[0] && order.storyPages[0].caption) ||
+    "Ийм байдлаар каптион текст харагдана.";
+
+  const fs = getCaptionFontSizes();
+  printDrawCenteredText(
+    ctx, sampleCaption, size / 2, PRINT_CAPTION_CENTER_Y - PRINT_LEFT_PANEL.y0,
+    PRINT_CAPTION_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, fs.max, fs.min
+  );
+}
+
+function wirePrintTextSettings(order) {
+  const sizeInput = document.getElementById("printFontSizeInput");
+  const sizeValue = document.getElementById("printFontSizeValue");
+  const colorInput = document.getElementById("printTextColorInput");
+
+  sizeInput.value = String(PRINT_TEXT_SETTINGS.fontSize);
+  sizeValue.textContent = String(PRINT_TEXT_SETTINGS.fontSize);
+  colorInput.value = PRINT_TEXT_SETTINGS.color;
+
+  sizeInput.addEventListener("input", () => {
+    PRINT_TEXT_SETTINGS.fontSize = Number(sizeInput.value);
+    sizeValue.textContent = sizeInput.value;
+    renderPrintPreview(order);
+  });
+  colorInput.addEventListener("input", () => {
+    PRINT_TEXT_SETTINGS.color = colorInput.value;
+    renderPrintPreview(order);
+  });
+
+  renderPrintPreview(order);
 }
 
 // CSS-ийн object-fit:cover-той адил — src зургийг box дотор бүрэн дүүргэж,
@@ -1785,7 +1934,7 @@ function printDrawCenteredText(ctx, text, centerX, centerY, maxWidth, maxHeight,
     ctx.lineWidth = strokeWidth * 2;
     ctx.strokeStyle = PRINT_STROKE_COLOR;
     ctx.strokeText(line, centerX, y);
-    ctx.fillStyle = PRINT_TEXT_COLOR;
+    ctx.fillStyle = PRINT_TEXT_SETTINGS.color;
     ctx.fillText(line, centerX, y);
     y += lineHeight;
   }
@@ -1827,10 +1976,13 @@ async function buildPrintPanels(order, onProgress) {
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, leftW, leftH);
     if (backgroundImg) printDrawCover(ctx, backgroundImg, 0, 0, leftW, leftH);
-    printDrawCenteredText(
-      ctx, captionByNumber[n] || "", leftW / 2, PRINT_CAPTION_CENTER_Y - PRINT_LEFT_PANEL.y0,
-      PRINT_CAPTION_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, PRINT_CAPTION_MAX_FONT_SIZE, PRINT_CAPTION_MIN_FONT_SIZE
-    );
+    {
+      const fs = getCaptionFontSizes();
+      printDrawCenteredText(
+        ctx, captionByNumber[n] || "", leftW / 2, PRINT_CAPTION_CENTER_Y - PRINT_LEFT_PANEL.y0,
+        PRINT_CAPTION_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, fs.max, fs.min
+      );
+    }
     panels[`text_${n}`] = canvas;
   }
 
@@ -1859,10 +2011,13 @@ async function buildPrintPanels(order, onProgress) {
       PRINT_PAGE10_IMAGE_RECT.x0 - PRINT_LEFT_PANEL.x0, PRINT_PAGE10_IMAGE_RECT.y0 - PRINT_LEFT_PANEL.y0,
       iw, ih
     );
-    printDrawCenteredText(
-      ctx, captionByNumber[10] || "", leftW / 2, PRINT_PAGE10_TEXT_CENTER_Y - PRINT_LEFT_PANEL.y0,
-      PRINT_PAGE10_TEXT_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, PRINT_CAPTION_MAX_FONT_SIZE, PRINT_CAPTION_MIN_FONT_SIZE
-    );
+    {
+      const fs = getCaptionFontSizes();
+      printDrawCenteredText(
+        ctx, captionByNumber[10] || "", leftW / 2, PRINT_PAGE10_TEXT_CENTER_Y - PRINT_LEFT_PANEL.y0,
+        PRINT_PAGE10_TEXT_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, fs.max, fs.min
+      );
+    }
     panels["combined_10"] = canvas;
   }
 
@@ -1873,10 +2028,13 @@ async function buildPrintPanels(order, onProgress) {
     canvas.height = rightH;
     const ctx = canvas.getContext("2d");
     printDrawCover(ctx, pageImages[1], 0, 0, rightW, rightH);
-    printDrawCenteredText(
-      ctx, order.coverDedication || "", rightW / 2, Math.round(rightH * 0.62),
-      PRINT_DEDICATION_MAX_WIDTH, PRINT_DEDICATION_MAX_HEIGHT, PRINT_DEDICATION_MAX_FONT_SIZE, PRINT_DEDICATION_MIN_FONT_SIZE
-    );
+    {
+      const fs = getDedicationFontSizes();
+      printDrawCenteredText(
+        ctx, order.coverDedication || "", rightW / 2, Math.round(rightH * 0.62),
+        PRINT_DEDICATION_MAX_WIDTH, PRINT_DEDICATION_MAX_HEIGHT, fs.max, fs.min
+      );
+    }
     panels["cover"] = canvas;
   }
 
