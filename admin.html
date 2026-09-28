@@ -1934,9 +1934,24 @@ function printWrapText(ctx, text, maxWidth) {
   return lines;
 }
 
+// Дугуйруулсан тэгш өнцөгт зам зурна (зарим хуучин Canvas-д ctx.roundRect
+// байхгүй байж болзошгүй тул өөрөө нэмж хэрэгжүүлэв).
+function printRoundRectPath(ctx, x, y, w, h, r) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
 // Текстийг төвд нь, цагаан stroke-той зурна — багтахгүй бол фонтын
-// хэмжээг автоматаар багасгана.
-function printDrawCenteredText(ctx, text, centerX, centerY, maxWidth, maxHeight, maxFontSize, minFontSize) {
+// хэмжээг автоматаар багасгана. options.background өгвөл текстийн ард
+// дугуйруулсан ирмэгтэй өнгөт "хавтан" зурж, зургийн дэвсгэр дээр
+// текстийг илүү тод харагдуулна (жишээ нь нүүр хуудасны зориулалтын үг).
+function printDrawCenteredText(ctx, text, centerX, centerY, maxWidth, maxHeight, maxFontSize, minFontSize, options = {}) {
   if (!text) return;
 
   let fontSize = maxFontSize;
@@ -1968,6 +1983,23 @@ function printDrawCenteredText(ctx, text, centerX, centerY, maxWidth, maxHeight,
   ctx.textBaseline = "middle";
   ctx.lineJoin = "round";
   ctx.miterLimit = 2;
+
+  if (options.background) {
+    const bg = options.background;
+    const widestLine = Math.max(0, ...lines.map((ln) => ctx.measureText(ln).width));
+    const padX = bg.paddingX != null ? bg.paddingX : Math.round(fontSize * 0.7);
+    const padY = bg.paddingY != null ? bg.paddingY : Math.round(fontSize * 0.5);
+    const boxW = Math.min(maxWidth + padX, widestLine + 2 * strokeWidth + 2 * padX);
+    const boxH = totalHeight + 2 * padY;
+    const boxX = centerX - boxW / 2;
+    const boxY = centerY - boxH / 2;
+    const radius = bg.radius != null ? bg.radius : Math.round(fontSize * 0.5);
+    ctx.save();
+    ctx.fillStyle = bg.color || "rgba(255,255,255,0.82)";
+    printRoundRectPath(ctx, boxX, boxY, boxW, boxH, radius);
+    ctx.fill();
+    ctx.restore();
+  }
 
   let y = centerY - totalHeight / 2 + lineHeight / 2;
   for (const line of lines) {
@@ -2072,7 +2104,8 @@ async function buildPrintPanels(order, onProgress) {
       const fs = getDedicationFontSizes();
       printDrawCenteredText(
         ctx, order.coverDedication || "", rightW / 2, Math.round(rightH * 0.62),
-        PRINT_DEDICATION_MAX_WIDTH, PRINT_DEDICATION_MAX_HEIGHT, fs.max, fs.min
+        PRINT_DEDICATION_MAX_WIDTH, PRINT_DEDICATION_MAX_HEIGHT, fs.max, fs.min,
+        { background: { color: "rgba(255,255,255,0.82)" } }
       );
     }
     panels["cover"] = canvas;
