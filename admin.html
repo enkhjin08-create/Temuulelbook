@@ -1601,6 +1601,22 @@ async function downloadAllImages(order) {
       }
     }
 
+    // book.json — хэвлэлийн зохион байгуулалт автоматжуулах скриптэд
+    // хэрэгтэй бүх текст мэдээллийг (каптионууд, нэр, зориулалт) нэг дор
+    // хадгална — гараар дахин бичихийг шаардахгүй байхын тулд.
+    const bookMeta = {
+      childName: order.childName || "",
+      gender: order.gender || "",
+      storyTitle: order.storyTitle || "",
+      coverDedication: order.coverDedication || "",
+      pages: sortedPages.map((p) => ({
+        pageIndex: p.pageIndex,
+        pageNumber: p.pageIndex + 1,
+        caption: p.caption || "",
+      })),
+    };
+    zip.file("book.json", JSON.stringify(bookMeta, null, 2));
+
     progress.textContent = "ZIP файл үүсгэж байна…";
     const zipBlob = await zip.generateAsync({ type: "blob" });
 
