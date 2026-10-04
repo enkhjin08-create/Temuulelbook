@@ -6,10 +6,53 @@ const uploadConfirm = document.getElementById("uploadConfirm");
 
 const genForm = document.getElementById("genForm");
 const generateBtn = document.getElementById("generateBtn");
+const generateBtnLabel = document.getElementById("generateBtnLabel");
 const childNameInput = document.getElementById("childName");
 const childAgeInput = document.getElementById("childAge");
 const childGenderInput = document.getElementById("childGender");
 const childInterestsInput = document.getElementById("childInterests");
+
+// ---------- горим сонгох: AI зохиолттой эсвэл захиалагч өөрөө бичсэн түүх ----------
+const OWN_PAGE_COUNT = 10;
+const modeToggle = document.getElementById("modeToggle");
+const modeAiBtn = document.getElementById("modeAiBtn");
+const modeOwnBtn = document.getElementById("modeOwnBtn");
+const aiStorySection = document.getElementById("aiStorySection");
+const ownStorySection = document.getElementById("ownStorySection");
+const ownStoryTitleInput = document.getElementById("ownStoryTitle");
+const ownPagesList = document.getElementById("ownPagesList");
+
+let currentMode = "ai";
+
+for (let i = 0; i < OWN_PAGE_COUNT; i++) {
+  const wrap = document.createElement("label");
+  wrap.className = "field own-page-field";
+  const labelSpan = document.createElement("span");
+  labelSpan.className = "field-label";
+  labelSpan.textContent = `${i + 1}-р хуудасны текст`;
+  const textarea = document.createElement("textarea");
+  textarea.className = "own-page-textarea";
+  textarea.rows = 2;
+  textarea.maxLength = 220;
+  textarea.placeholder = "Энэ хуудсанд юу болохыг бичнэ үү…";
+  wrap.appendChild(labelSpan);
+  wrap.appendChild(textarea);
+  ownPagesList.appendChild(wrap);
+}
+const ownPageTextareas = Array.from(document.querySelectorAll(".own-page-textarea"));
+
+function setMode(mode) {
+  currentMode = mode;
+  modeAiBtn.classList.toggle("active", mode === "ai");
+  modeOwnBtn.classList.toggle("active", mode === "own");
+  aiStorySection.hidden = mode !== "ai";
+  ownStorySection.hidden = mode !== "own";
+  childInterestsInput.required = mode === "ai";
+  generateBtnLabel.textContent = mode === "ai" ? "Түүх зохиож эхлэх" : "Үргэлжлүүлэх";
+}
+
+modeAiBtn.addEventListener("click", () => setMode("ai"));
+modeOwnBtn.addEventListener("click", () => setMode("own"));
 
 const storyTitleEl = document.getElementById("storyTitle");
 const storySubtitleEl = document.getElementById("storySubtitle");
@@ -302,7 +345,7 @@ genForm.addEventListener("submit", async (e) => {
   if (!childName) { childNameInput.focus(); return; }
   if (!age) { childAgeInput.focus(); return; }
   if (!gender) { childGenderInput.focus(); return; }
-  if (!interests) { childInterestsInput.focus(); return; }
+  if (currentMode === "ai" && !interests) { childInterestsInput.focus(); return; }
   if (!photoDataUrl) {
     alert("Эхлээд хүүхдийн зургаа оруулна уу.");
     return;
@@ -318,6 +361,33 @@ genForm.addEventListener("submit", async (e) => {
   updatePriceSummary(120000, 0, "");
   storyPages = [];
   firstPageImageBase64 = null;
+
+  if (currentMode === "own") {
+    const titleVal = ownStoryTitleInput.value.trim();
+    if (!titleVal) {
+      alert("Номынхоо гарчгийг бичнэ үү.");
+      ownStoryTitleInput.focus();
+      return;
+    }
+    const pages = [];
+    let missingIdx = -1;
+    ownPageTextareas.forEach((ta, i) => {
+      const v = ta.value.trim();
+      if (!v && missingIdx === -1) missingIdx = i;
+      pages.push({ caption: v, sceneDescription: v });
+    });
+    if (missingIdx !== -1) {
+      alert(`${missingIdx + 1}-р хуудасны текстээ бичнэ үү.`);
+      ownPageTextareas[missingIdx].focus();
+      return;
+    }
+    storyPages = pages;
+    currentStoryTitle = titleVal;
+    renderStoryCard(currentStoryTitle, storyPages.length);
+    renderOutline(storyPages);
+    setState("story-ready");
+    return;
+  }
 
   await composeStory(childName, age, gender, interests);
 });
