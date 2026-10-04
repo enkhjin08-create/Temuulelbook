@@ -156,11 +156,25 @@
         </select>
       </label>
 
-      <label class="field">
+      <div class="mode-toggle" id="modeToggle">
+        <button type="button" class="mode-btn active" id="modeAiBtn" data-mode="ai">🤖 AI надад зохиож өгөөч</button>
+        <button type="button" class="mode-btn" id="modeOwnBtn" data-mode="own">✍️ Би өөрөө бичье</button>
+      </div>
+
+      <label class="field" id="aiStorySection">
         <span class="field-label">Сонирхол эсвэл номын агуулга</span>
         <textarea id="childInterests" name="childInterests" rows="3" placeholder="Жишээ: Хөлбөмбөгт дуртай, аавтайгаа цуг зурагтаар үздэг" required maxlength="400"></textarea>
         <span class="upload-hint">Нэг гол сэдэв эсвэл товч агуулга бичихэд хангалттай — олон зүйл жагсаах шаардлагагүй</span>
       </label>
+
+      <div class="own-story-section" id="ownStorySection" hidden>
+        <label class="field">
+          <span class="field-label">Номын гарчиг</span>
+          <input type="text" id="ownStoryTitle" placeholder="Жишээ: Номины гайхамшигтай аялал" maxlength="80" />
+        </label>
+        <p class="upload-hint">Нийт 10 хуудас — хуудас бүрт юу болохыг 1-2 өгүүлбэрээр бичнэ үү. Эхний хуудсыг л зураач зурж, танд харуулна — үлдсэнийг нь захиалсны дараа зурна.</p>
+        <div class="own-pages-list" id="ownPagesList"></div>
+      </div>
 
       <div class="field">
         <span class="field-label">Гэрэл зураг</span>
@@ -182,7 +196,7 @@
       </label>
 
       <button type="submit" id="generateBtn" class="btn-generate">
-        <span class="btn-label">Түүх зохиож эхлэх</span>
+        <span class="btn-label" id="generateBtnLabel">Түүх зохиож эхлэх</span>
         <span class="btn-spark">✦</span>
       </button>
 
