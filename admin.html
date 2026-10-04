@@ -220,14 +220,39 @@
 
   .promo-row-item {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     background: var(--cream);
     border-radius: 8px;
     padding: 8px 12px;
     font-size: 13px;
   }
   .promo-row-item b { color: var(--coral); font-family: var(--font-display); }
+  .promo-extend-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .promo-extend-date {
+    font-size: 12px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+  }
+  .btn-promo-extend {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 11px;
+    color: white;
+    background: var(--sage, #4a8a6e);
+    border: none;
+    border-radius: 999px;
+    padding: 5px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
   .btn-promo-delete {
     font-family: var(--font-body);
     font-weight: 700;
@@ -2294,10 +2319,45 @@ function renderPromoList(items) {
     const discountLabel = p.discountType === "percent" ? `${p.discountValue}%` : `${p.discountValue.toLocaleString()}₮`;
     const usageLabel = p.usageLimit ? `${p.usageCount || 0}/${p.usageLimit}` : `${p.usageCount || 0}/∞`;
     const expiryLabel = p.expiresAt ? new Date(p.expiresAt).toLocaleDateString("mn-MN") : "хугацаагүй";
+    const dateInputValue = p.expiresAt ? new Date(p.expiresAt).toISOString().slice(0, 10) : "";
     row.innerHTML = `
       <span><b>${escapeHtml(p.code)}</b> — ${discountLabel} · ашигласан: ${usageLabel} · ${expiryLabel}</span>
+      <span class="promo-extend-group">
+        <input type="date" class="promo-extend-date" value="${dateInputValue}" title="Шинэ дуусах огноо" />
+        <button class="btn-promo-extend" data-code="${escapeHtml(p.code)}">Хугацаа сунгах</button>
+      </span>
       <button class="btn-promo-delete" data-code="${escapeHtml(p.code)}">Устгах</button>
     `;
+    row.querySelector(".btn-promo-extend").addEventListener("click", async (ev) => {
+      const dateInput = row.querySelector(".promo-extend-date");
+      const newDate = dateInput.value;
+      if (!newDate) {
+        alert("Шинэ дуусах огноог сонгоно уу.");
+        return;
+      }
+      const btn = ev.currentTarget;
+      btn.disabled = true;
+      try {
+        const res = await adminFetch("/.netlify/functions/create-promo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code: p.code,
+            discountType: p.discountType,
+            discountValue: p.discountValue,
+            usageLimit: p.usageLimit,
+            expiresAt: new Date(newDate).toISOString(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Алдаа гарлаа");
+        loadPromos();
+      } catch (err) {
+        alert(`Хугацаа сунгахад алдаа гарлаа: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
     row.querySelector(".btn-promo-delete").addEventListener("click", async () => {
       if (!confirm(`"${p.code}" промо кодыг устгах уу?`)) return;
       await adminFetch("/.netlify/functions/delete-promo", {
