@@ -696,6 +696,47 @@ input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus,
   box-shadow: 0 6px 14px rgba(46,34,71,0.25);
 }
 
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+  background: var(--cream);
+  border-radius: 999px;
+  padding: 5px;
+}
+.mode-btn {
+  flex: 1;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--plum-soft);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.mode-btn.active {
+  background: var(--white);
+  color: var(--coral);
+  box-shadow: 0 4px 10px rgba(46,34,71,0.12);
+}
+
+.own-story-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.own-pages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.own-page-field .field-label {
+  font-size: 13.5px;
+  color: var(--plum-soft);
+}
+
 .btn-generate {
   font-family: var(--font-display);
   font-weight: 700;
