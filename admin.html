@@ -1821,8 +1821,10 @@ async function downloadAllImages(order) {
 const PRINT_CANVAS_SIZE = { w: 4961, h: 3508 };
 const PRINT_LEFT_PANEL = { x0: 296, y0: 691, x1: 2484, y1: 2879 };
 const PRINT_RIGHT_PANEL = { x0: 2483, y0: 691, x1: 4669, y1: 2877 };
-const PRINT_PAGE10_IMAGE_RECT = { x0: 302, y0: 691, x1: 2478, y1: 2867 };
-const PRINT_PAGE10_TEXT_CENTER_Y = 1060;
+// 10-р хуудас: зураг дээд талд, текст зургийн доор (панелийн дотоод координат)
+const PRINT_PAGE10_IMAGE_SIZE = 1720;
+const PRINT_PAGE10_IMAGE_TOP = 70;
+const PRINT_PAGE10_BOTTOM_MARGIN = 60;
 const PRINT_PAGE10_TEXT_MAX_WIDTH = 1900;
 
 const PRINT_CAPTION_CENTER_Y = 1751;
@@ -2125,18 +2127,18 @@ async function buildPrintPanels(order, onProgress) {
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, leftW, leftH);
-    const iw = PRINT_PAGE10_IMAGE_RECT.x1 - PRINT_PAGE10_IMAGE_RECT.x0;
-    const ih = PRINT_PAGE10_IMAGE_RECT.y1 - PRINT_PAGE10_IMAGE_RECT.y0;
-    printDrawCover(
-      ctx, pageImages[10],
-      PRINT_PAGE10_IMAGE_RECT.x0 - PRINT_LEFT_PANEL.x0, PRINT_PAGE10_IMAGE_RECT.y0 - PRINT_LEFT_PANEL.y0,
-      iw, ih
-    );
+    // Зураг дээд талд (квадрат хэвээр), текст нь зургийн ДООР — зургийг таглахгүй
+    const imgSize = PRINT_PAGE10_IMAGE_SIZE;
+    const imgX = Math.round((leftW - imgSize) / 2);
+    const imgY = PRINT_PAGE10_IMAGE_TOP;
+    printDrawCover(ctx, pageImages[10], imgX, imgY, imgSize, imgSize);
     {
       const fs = getCaptionFontSizes();
+      const bandTop = imgY + imgSize;
+      const bandH = leftH - bandTop - PRINT_PAGE10_BOTTOM_MARGIN;
       printDrawCenteredText(
-        ctx, captionByNumber[10] || "", leftW / 2, PRINT_PAGE10_TEXT_CENTER_Y - PRINT_LEFT_PANEL.y0,
-        PRINT_PAGE10_TEXT_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, fs.max, fs.min
+        ctx, captionByNumber[10] || "", leftW / 2, bandTop + bandH / 2,
+        PRINT_PAGE10_TEXT_MAX_WIDTH, bandH, fs.max, fs.min
       );
     }
     panels["combined_10"] = canvas;
