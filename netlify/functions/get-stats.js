@@ -10,6 +10,7 @@
 // тоог хуучин rate-limit бүртгэлээс сэргээнэ (legacy: true). Тэр бүртгэл нь
 // захиалга хийсэн хүмүүсийн хувьд захиалгын үед арилдаг тул дутуу байж болно.
 
+const crypto = require("crypto");
 const { getStore } = require("@netlify/blobs");
 const { checkAdminPin } = require("./_admin-auth");
 const { getStatsStore, mongoliaDay, MN_OFFSET_MS } = require("./_stats");
@@ -28,12 +29,19 @@ function getOrdersStore() {
   return getStore("pixietale-orders");
 }
 
+// IP-г хэсэгчлэн нууцлах боловч өөр өөр IP-г ялгахын тулд бүтэн IP-ийн богино
+// "хуруун хээ" (#xxxx) нэмнэ. IPv6-ийн хувьд эхний 4 бүлэг (/64) харуулна —
+// ихэнх оператор нэг төхөөрөмжид нэг /64 өгдөг.
 function maskIp(ip) {
+  const tag = crypto.createHash("sha1").update(ip).digest("hex").slice(0, 4);
+  let label;
   if (ip.includes(".")) {
     const p = ip.split(".");
-    return `${p[0]}.${p[1]}.*.*`;
+    label = `${p[0]}.${p[1]}.${p[2]}.*`;
+  } else {
+    label = ip.split(":").slice(0, 4).join(":") + "::*";
   }
-  return ip.split(":").slice(0, 2).join(":") + ":*";
+  return `${label} #${tag}`;
 }
 
 exports.handler = async (event) => {
