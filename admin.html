@@ -1985,6 +1985,20 @@ function printWrapText(ctx, text, maxWidth) {
   return lines;
 }
 
+// "\n"-ээр тусгаарлагдсан догол мөр бүрийг тусад нь мөрөнд хуваана
+function printWrapParagraphs(ctx, text, maxWidth) {
+  const out = [];
+  String(text).split("\n").forEach((para) => {
+    if (para.trim()) out.push(...printWrapText(ctx, para, maxWidth));
+  });
+  return out;
+}
+
+// Өгүүлбэр (. ! ? … дараа) шинээр эхэлбэл шинэ мөрөөс эхлүүлнэ
+function printSplitSentences(text) {
+  return String(text || "").trim().split(/(?<=[.!?…])\s+/).join("\n");
+}
+
 // Дугуйруулсан тэгш өнцөгт зам зурна (зарим хуучин Canvas-д ctx.roundRect
 // байхгүй байж болзошгүй тул өөрөө нэмж хэрэгжүүлэв).
 function printRoundRectPath(ctx, x, y, w, h, r) {
@@ -2014,7 +2028,7 @@ function printDrawCenteredText(ctx, text, centerX, centerY, maxWidth, maxHeight,
   while (fontSize >= minFontSize) {
     ctx.font = `${fontSize}px "${PRINT_FONT_FAMILY}", sans-serif`;
     strokeWidth = Math.max(1, Math.round(fontSize * PRINT_STROKE_WIDTH_RATIO));
-    lines = printWrapText(ctx, text, maxWidth - 2 * strokeWidth);
+    lines = printWrapParagraphs(ctx, text, maxWidth - 2 * strokeWidth);
     lineHeight = Math.round(fontSize * 1.3);
     totalHeight = lineHeight * lines.length;
     const widest = Math.max(0, ...lines.map((ln) => ctx.measureText(ln).width + 2 * strokeWidth));
@@ -2025,7 +2039,7 @@ function printDrawCenteredText(ctx, text, centerX, centerY, maxWidth, maxHeight,
     fontSize = minFontSize;
     ctx.font = `${fontSize}px "${PRINT_FONT_FAMILY}", sans-serif`;
     strokeWidth = Math.max(1, Math.round(fontSize * PRINT_STROKE_WIDTH_RATIO));
-    lines = printWrapText(ctx, text, maxWidth - 2 * strokeWidth);
+    lines = printWrapParagraphs(ctx, text, maxWidth - 2 * strokeWidth);
     lineHeight = Math.round(fontSize * 1.3);
     totalHeight = lineHeight * lines.length;
   }
@@ -2157,8 +2171,16 @@ async function buildPrintPanels(order, onProgress) {
     {
       const fs = getDedicationFontSizes();
       printDrawCenteredText(
-        ctx, order.coverDedication || "", rightW / 2, Math.round(rightH * 0.62),
+        ctx, printSplitSentences(order.coverDedication), rightW / 2, Math.round(rightH * 0.62),
         PRINT_DEDICATION_MAX_WIDTH, PRINT_DEDICATION_MAX_HEIGHT, fs.max, fs.min,
+        { background: { color: "rgba(255,255,255,0.82)" } }
+      );
+      // Хамгийн доор он — PDF-ийг хэвлэхээр гаргаж буй (одоогийн) оныг автоматаар. Зөвхөн нүүр хуудсанд.
+      const year = new Date().getFullYear();
+      const yfs = Math.round(fs.max * 0.7);
+      printDrawCenteredText(
+        ctx, `${year} он`, rightW / 2, Math.round(rightH * 0.9),
+        PRINT_DEDICATION_MAX_WIDTH, yfs * 2, yfs, Math.round(yfs * 0.5),
         { background: { color: "rgba(255,255,255,0.82)" } }
       );
     }
