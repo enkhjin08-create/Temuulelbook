@@ -506,6 +506,18 @@
     display: block;
     margin-bottom: 8px;
   }
+  .stats-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 13px; }
+  .stats-toolbar select { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--cream-2); background: var(--cream); color: var(--plum); }
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .stats-table th, .stats-table td { padding: 8px 6px; text-align: right; border-bottom: 1px solid var(--cream-2); }
+  .stats-table th:first-child, .stats-table td:first-child { text-align: left; }
+  .stats-table th { color: var(--plum-soft); font-weight: 700; font-size: 12px; }
+  .stats-row { cursor: pointer; }
+  .stats-row:hover { background: var(--cream); }
+  .stats-people { background: var(--cream); }
+  .stats-people td { text-align: right; color: var(--plum-soft); font-size: 12px; }
+  .stats-people td:first-child { text-align: left; padding-left: 20px; }
+  .stats-note { font-size: 12px; color: var(--plum-soft); margin: 8px 0 0; }
   .page-edit-status {
     font-size: 12px;
     color: var(--plum-soft);
@@ -536,6 +548,18 @@
     <section class="hero">
       <h1>Захиалгууд</h1>
     </section>
+
+    <div class="promo-panel">
+      <button type="button" class="btn-toggle-promo" id="toggleStatsBtn">📊 Статистик</button>
+      <div id="statsPanelBody" hidden>
+        <div class="stats-toolbar">
+          <span>Сүүлийн</span>
+          <select id="statsDaysSelect"><option value="7">7 хоног</option><option value="14" selected>14 хоног</option><option value="30">30 хоног</option></select>
+          <button type="button" class="btn-promo-create" id="statsRefreshBtn">Шинэчлэх</button>
+        </div>
+        <div id="statsContainer">Ачааллаж байна…</div>
+      </div>
+    </div>
 
     <div class="promo-panel">
       <button type="button" class="btn-toggle-promo" id="togglePromoBtn">🏷 Промо кодууд</button>
@@ -2219,6 +2243,74 @@ async function downloadPrintPdf(order) {
 }
 
 // ---------- промо код удирдлага ----------
+
+
+// ---------- статистик ----------
+const toggleStatsBtn = document.getElementById("toggleStatsBtn");
+const statsPanelBody = document.getElementById("statsPanelBody");
+const statsContainer = document.getElementById("statsContainer");
+const statsDaysSelect = document.getElementById("statsDaysSelect");
+
+toggleStatsBtn.addEventListener("click", () => {
+  statsPanelBody.hidden = !statsPanelBody.hidden;
+  if (!statsPanelBody.hidden) loadStats();
+});
+document.getElementById("statsRefreshBtn").addEventListener("click", loadStats);
+statsDaysSelect.addEventListener("change", loadStats);
+
+async function loadStats() {
+  statsContainer.textContent = "Ачааллаж байна…";
+  try {
+    const res = await adminFetch(`/.netlify/functions/get-stats?days=${statsDaysSelect.value}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Алдаа гарлаа");
+    renderStats(data.days);
+  } catch (err) {
+    statsContainer.innerHTML = `<p>Алдаа: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderStats(days) {
+  const table = document.createElement("table");
+  table.className = "stats-table";
+  table.innerHTML = `<thead><tr>
+    <th>Өдөр</th><th>Хандсан хүн</th><th>Түүх: хүн / удаа</th><th>Зураг: хүн / удаа</th><th>Захиалга</th>
+  </tr></thead>`;
+  const tbody = document.createElement("tbody");
+  let anyLegacy = false;
+  days.forEach((d) => {
+    if (d.legacy) anyLegacy = true;
+    const tr = document.createElement("tr");
+    tr.className = "stats-row";
+    const visitors = d.visitorsTracked ? d.visitors : "—";
+    tr.innerHTML = `<td>${d.date}${d.legacy ? " *" : ""}</td><td>${visitors}</td>
+      <td>${d.storyUsers} / ${d.storyTotal}</td><td>${d.imageUsers} / ${d.imageTotal}</td><td>${d.orders}</td>`;
+    tbody.appendChild(tr);
+
+    const detail = document.createElement("tr");
+    detail.className = "stats-people";
+    detail.hidden = true;
+    const td = document.createElement("td");
+    td.colSpan = 5;
+    td.style.textAlign = "left";
+    td.innerHTML = d.people.length
+      ? `<table class="stats-table" style="margin:0"><thead><tr><th>Хэрэглэгч (IP)</th><th>Түүх</th><th>Зураг</th></tr></thead><tbody>${
+          d.people.map((p) => `<tr><td>${escapeHtml(p.ip)}</td><td>${p.stories}</td><td>${p.images}</td></tr>`).join("")
+        }</tbody></table>`
+      : "<span style='font-size:12px;'>Generate хийсэн хүн алга.</span>";
+    detail.appendChild(td);
+    tbody.appendChild(detail);
+    tr.addEventListener("click", () => { detail.hidden = !detail.hidden; });
+  });
+  table.appendChild(tbody);
+  statsContainer.innerHTML = "";
+  statsContainer.appendChild(table);
+  const note = document.createElement("p");
+  note.className = "stats-note";
+  note.textContent = "Мөр дээр дарж хүн тутмын задаргааг харна. Хүн = IP хаяг (хэсэгчлэн нууцалсан). Өдрийг Улаанбаатарын цагаар тооцно. «—» = хандалтын бүртгэл эхлээгүй өдөр."
+    + (anyLegacy ? " * = статистик бүртгэл эхлэхээс өмнөх өдөр: generate-ийн тоог хуучин хязгаарлалтын бүртгэлээс сэргээсэн тул захиалга хийсэн хүмүүсийн тоо дутуу байж болно." : "");
+  statsContainer.appendChild(note);
+}
 
 togglePromoBtn.addEventListener("click", () => {
   promoPanelBody.hidden = !promoPanelBody.hidden;

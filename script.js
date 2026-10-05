@@ -994,3 +994,22 @@ childAgeUnitInput.addEventListener("change", () => {
     childAgeInput.placeholder = "Жишээ: 5";
   }
 });
+
+// ---------- хандалтын статистик (өвөрмөц хэрэглэгчийг өдөр бүр нэг тоолно) ----------
+(function trackVisit() {
+  try {
+    let id = localStorage.getItem("ztVisitorId");
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2, 10));
+      localStorage.setItem("ztVisitorId", id);
+    }
+    fetch("/.netlify/functions/track-visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId: id }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch (e) {
+    // localStorage хаалттай үед (private mode) статистикт тоологдохгүй — хамаагүй
+  }
+})();

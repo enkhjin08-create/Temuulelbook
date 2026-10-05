@@ -16,6 +16,7 @@ const PAGE_COUNT = 10;
 const DAILY_LIMIT = 10; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо
 
 const { checkRateLimit, incrementRateLimit } = require("./_rate-limit");
+const { recordGeneration } = require("./_stats");
 const { claimOrWaitForRequest, markDone, markError } = require("./_idempotency");
 
 exports.handler = async (event) => {
@@ -195,6 +196,7 @@ this shape:
     }));
 
     await incrementRateLimit(event, "generate-story");
+    await recordGeneration(event, "story");
 
     const result = {
       title: String(story.title || `${childName}-ийн үлгэр`).slice(0, 200),

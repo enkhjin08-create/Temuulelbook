@@ -18,6 +18,7 @@
 const { buildPagePrompt } = require("./stories");
 const { getStore } = require("@netlify/blobs");
 const { checkRateLimit, incrementRateLimit } = require("./_rate-limit");
+const { recordGeneration } = require("./_stats");
 const { claimOrWaitForRequest, markDone, markError } = require("./_idempotency");
 const { compressToJpeg } = require("./_image-compress");
 
@@ -182,6 +183,7 @@ exports.handler = async (event) => {
     }
 
     await incrementRateLimit(event, "generate-character");
+    await recordGeneration(event, "image");
 
     const result = {
       imageBase64: `data:${outMime};base64,${outData}`,
