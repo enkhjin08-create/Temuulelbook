@@ -13,7 +13,7 @@ const GEMINI_TEXT_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
 const PAGE_COUNT = 10;
-const DAILY_LIMIT = 20; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо
+const DAILY_LIMIT = 10; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо
 
 const { checkRateLimit, incrementRateLimit } = require("./_rate-limit");
 const { claimOrWaitForRequest, markDone, markError } = require("./_idempotency");

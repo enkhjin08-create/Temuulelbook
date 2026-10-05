@@ -24,7 +24,7 @@ const { compressToJpeg } = require("./_image-compress");
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent";
 
-const DAILY_LIMIT = 20; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо (admin PIN-тэй бол хамаарахгүй)
+const DAILY_LIMIT = 10; // нэг IP хаягт өдөрт зөвшөөрөх дээд тоо (admin PIN-тэй бол хамаарахгүй)
 
 function getGalleryStore() {
   const siteID = process.env.BLOBS_SITE_ID;
