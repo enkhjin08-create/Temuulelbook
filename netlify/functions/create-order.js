@@ -184,7 +184,7 @@ exports.handler = async (event) => {
       html: `
         <h2>Шинэ захиалга ирлээ</h2>
         <p><b>Захиалгын дугаар:</b> ${escapeHtml(orderNumber)}</p>
-        <p><b>Хүүхэд:</b> ${escapeHtml(childName)} (${escapeHtml(gender || "")}, ${escapeHtml(String(age || ""))} нас)</p>
+        <p><b>Хүүхэд:</b> ${escapeHtml(childName)} (${escapeHtml(gender || "")}, ${escapeHtml(/сар/.test(String(age || "")) ? String(age) : `${age || ""} нас`)})</p>
         <p><b>Сонирхол:</b> ${escapeHtml(interests || "")}</p>
         <p><b>Түүх:</b> ${escapeHtml(storyTitle || "")}</p>
         <p><b>Утас:</b> ${escapeHtml(contactPhone)}</p>

@@ -9,6 +9,7 @@ const generateBtn = document.getElementById("generateBtn");
 const generateBtnLabel = document.getElementById("generateBtnLabel");
 const childNameInput = document.getElementById("childName");
 const childAgeInput = document.getElementById("childAge");
+const childAgeUnitInput = document.getElementById("childAgeUnit");
 const childGenderInput = document.getElementById("childGender");
 const childInterestsInput = document.getElementById("childInterests");
 
@@ -338,7 +339,9 @@ genForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const childName = childNameInput.value.trim();
-  const age = childAgeInput.value.trim();
+  const ageNum = childAgeInput.value.trim();
+  // Бага насны хүүхэд: сараар оруулбал "6 сар" гэж хадгална (нас бол зөвхөн тоо)
+  const age = ageNum && childAgeUnitInput.value === "month" ? `${ageNum} сар` : ageNum;
   const gender = childGenderInput.value;
   const interests = childInterestsInput.value.trim();
 
@@ -977,4 +980,17 @@ signupForm.addEventListener("submit", async (e) => {
 
 logoutBtn.addEventListener("click", () => {
   clearAuth();
+});
+
+// Нас/сарын сонголт өөрчлөгдөхөд оруулах утгын хязгаарыг тохируулна
+childAgeUnitInput.addEventListener("change", () => {
+  if (childAgeUnitInput.value === "month") {
+    childAgeInput.min = "1";
+    childAgeInput.max = "36";
+    childAgeInput.placeholder = "Жишээ: 6";
+  } else {
+    childAgeInput.min = "1";
+    childAgeInput.max = "14";
+    childAgeInput.placeholder = "Жишээ: 5";
+  }
 });

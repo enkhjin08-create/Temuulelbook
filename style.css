@@ -696,6 +696,13 @@ input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus,
   box-shadow: 0 6px 14px rgba(46,34,71,0.25);
 }
 
+.age-row {
+  display: flex;
+  gap: 8px;
+}
+.age-row input { flex: 1; min-width: 0; }
+.age-row select { flex: 0 0 auto; }
+
 .mode-toggle {
   display: flex;
   gap: 8px;

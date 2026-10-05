@@ -144,7 +144,13 @@
 
       <label class="field">
         <span class="field-label">Нас</span>
-        <input type="number" id="childAge" name="childAge" placeholder="Жишээ: 5" min="1" max="14" required />
+        <div class="age-row">
+          <input type="number" id="childAge" name="childAge" placeholder="Жишээ: 5" min="1" max="14" required />
+          <select id="childAgeUnit" name="childAgeUnit" aria-label="Нас эсвэл сар">
+            <option value="year" selected>нас</option>
+            <option value="month">сар</option>
+          </select>
+        </div>
       </label>
 
       <label class="field">

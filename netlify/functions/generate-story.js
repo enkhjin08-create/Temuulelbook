@@ -61,6 +61,11 @@ exports.handler = async (event) => {
     return respond(200, idem.cached);
   }
 
+  // Нас нь "5" (жил) эсвэл "6 сар" (сартай нярай/багачуул) хэлбэртэй байж болно
+  const monthMatch = String(age).match(/^\s*(\d+)\s*сар/);
+  const isInfant = !!monthMatch;
+  const ageDesc = isInfant ? `${monthMatch[1]}-month-old baby` : `${age}-year-old`;
+  const ageLabel = isInfant ? `${monthMatch[1]} months` : `${age}`;
   const genderEn = gender === "хүү" ? "boy" : "girl";
   const pronounEn = gender === "хүү" ? "he/him" : "she/her";
 
@@ -68,7 +73,7 @@ exports.handler = async (event) => {
 You are an award-winning children's book author writing in MONGOLIAN, known for
 warm, vivid, and beautifully-written prose that both children and parents love
 to read aloud. Write a personalized ${PAGE_COUNT}-page picture book outline for
-a ${genderEn} named "${childName}", age ${age}, who is interested in:
+a ${genderEn} named "${childName}", age ${ageLabel}, who is interested in:
 ${interests}.
 
 CRITICAL: The child is a ${genderEn} (pronouns: ${pronounEn}). Every scene
@@ -77,7 +82,13 @@ do not default to the opposite gender, do not use gender-neutral phrasing when a
 specific pronoun is natural, and do not switch gender partway through the story.
 
 STORY STRUCTURE requirements:
-- Age-appropriate for a ${age}-year-old (simple, warm, gentle themes; nothing scary).
+- Age-appropriate for a ${ageDesc} (simple, warm, gentle themes; nothing scary).${isInfant ? `
+- The child is a baby who cannot yet talk or walk independently: write a soft,
+  lullaby-like bedtime story read aloud BY the parents ABOUT the baby — very
+  short, rhythmic sentences, cozy sensory scenes (cuddles, bath time, gentle
+  animals, stars, sleep), and loving repetition. The baby should not speak or
+  perform complex actions; show the baby being carried, cuddled, smiling,
+  reaching or discovering things.` : ""}
 - Weave their interests (${interests}) naturally into the plot and setting.
 - Introduce ONE recurring companion character or magical element early on (e.g. an
   animal friend, a magical creature, a helpful object) that stays present and
@@ -96,7 +107,7 @@ MONGOLIAN LANGUAGE QUALITY — this is critical, read carefully:
   caption the same way (e.g. do not begin most sentences with "Тэр..." or the
   child's name) — mix subject-first, time/place-first, and action-first sentence
   openings across the ${PAGE_COUNT} pages for rhythm and variety.
-- Use rich, specific, sensory vocabulary appropriate for a ${age}-year-old — vivid
+- Use rich, specific, sensory vocabulary appropriate for a ${ageDesc} — vivid
   verbs and descriptive words rather than generic, repeated ones. Avoid reusing
   the same verb or adjective on multiple pages (e.g. don't overuse "гайхалтай",
   "баяртай", "олов" repeatedly) — choose varied, precise Mongolian words for each
