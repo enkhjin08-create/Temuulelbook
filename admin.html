@@ -1822,6 +1822,8 @@ async function downloadAllImages(order) {
 // (print-tools/build_print_pdf.py Python скриптийн адил логик, гэхдээ
 // admin.html дотор шууд ажиллах тул Python суулгах шаардлагагүй.)
 
+// Хавтасны хээний 11 дэх нүүрийн захын зай (px, 300 DPI)
+const PRINT_PATTERN_PAGE_MARGIN = 240;
 const PRINT_CANVAS_SIZE = { w: 4961, h: 3508 };
 const PRINT_LEFT_PANEL = { x0: 296, y0: 691, x1: 2484, y1: 2879 };
 const PRINT_RIGHT_PANEL = { x0: 2483, y0: 691, x1: 4669, y1: 2877 };
@@ -2267,11 +2269,34 @@ async function downloadPrintPdf(order) {
       pdf.addImage(backCanvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageWidthMm, pageHeightMm);
     }
 
+    // 11 дэх нүүр: хавтасны хээ (хуудас бүтнээрээ, зураасгүй)
+    let patternAdded = false;
+    if (order.patternImageKey) {
+      progress.textContent = "Хавтасны хээг угсарч байна…";
+      const patternImg = await printLoadImage(await fetchOrderImageDataUrl(order.patternImageKey));
+      const pc = document.createElement("canvas");
+      pc.width = PRINT_CANVAS_SIZE.w;
+      pc.height = PRINT_CANVAS_SIZE.h;
+      const pctx = pc.getContext("2d");
+      pctx.fillStyle = "#FFFFFF";
+      pctx.fillRect(0, 0, pc.width, pc.height);
+      const m = PRINT_PATTERN_PAGE_MARGIN;
+      pctx.save();
+      pctx.beginPath();
+      pctx.rect(m, m, pc.width - 2 * m, pc.height - 2 * m);
+      pctx.clip();
+      printDrawCover(pctx, patternImg, m, m, pc.width - 2 * m, pc.height - 2 * m);
+      pctx.restore();
+      pdf.addPage([pageWidthMm, pageHeightMm], "landscape");
+      pdf.addImage(pc.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageWidthMm, pageHeightMm);
+      patternAdded = true;
+    }
+
     progress.textContent = "PDF файл татаж байна…";
     const safeChildName = (order.childName || "order").replace(/[^a-zA-Zа-яА-ЯёЁ0-9]+/g, "_");
     pdf.save(`${safeChildName}-${order.orderNumber || order.id}-print-ready.pdf`);
 
-    progress.textContent = "✓ Бэлэн боллоо";
+    progress.textContent = patternAdded ? "✓ Бэлэн боллоо (11 нүүр: хавтасны хээтэй)" : "✓ Бэлэн боллоо (⚠️ хавтасны хээ зураагүй тул 11 дэх нүүр орсонгүй)";
   } catch (err) {
     console.error("downloadPrintPdf error:", err);
     progress.textContent = `Алдаа: ${err.message}`;
