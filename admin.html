@@ -1431,9 +1431,16 @@ function renderPagesList(order) {
           <button class="btn-page-restore" id="pageRestoreBtn-${i}" title="Өмнөх зургийг сэргээх" ${generated && generated.hasPrevious ? "" : "hidden"}>↺ Өмнөх зураг</button>
           <span class="page-edit-status" id="pageStatus-${i}"></span>
         </div>
+        ${i === 0 ? `
+        <div class="page-edit-actions" style="margin-top:8px;">
+          <input type="file" accept="image/*" id="enhanceFileInput" class="page-edit-file-input" />
+          <button class="btn-page-generate" id="enhanceBtn" disabled title="Өөр газар (жишээ нь Gemini апп) гаргасан бэлэн зургийг 2K чанартай болгож 1-р хуудсаар хадгална">✨ Бэлэн зураг сайжруулж оруулах</button>
+        </div>` : ""}
       </div>
     `;
     list.appendChild(card);
+
+    if (i === 0) wireEnhanceFirstPage(order);
 
     document.getElementById(`pageCopyBtn-${i}`).addEventListener("click", () => copyOnePageText(i));
     document.getElementById(`pageRestoreBtn-${i}`).addEventListener("click", () => restorePageAt(order, i));
@@ -1453,6 +1460,76 @@ function renderPagesList(order) {
       document.getElementById(`pageStatus-${i}`).textContent = "Эхлээд 1-р хуудсыг зурна уу";
     } else {
       btn.addEventListener("click", () => generatePageAt(order, i));
+    }
+  });
+}
+
+// 1-р хуудасны бэлэн зургийг (өөр газар гаргасан) номын чанарт сайжруулж
+// 1-р хуудас болгон хадгална
+function wireEnhanceFirstPage(order) {
+  const fileInput = document.getElementById("enhanceFileInput");
+  const btn = document.getElementById("enhanceBtn");
+  const status = document.getElementById("pageStatus-0");
+  const imgWrap = document.getElementById("pageImgWrap-0");
+
+  fileInput.addEventListener("change", () => { btn.disabled = !fileInput.files.length; });
+
+  btn.addEventListener("click", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const hadImage = order.generatedPages.some((p) => p.pageIndex === 0);
+    if (hadImage && !confirm("Одоогийн 1-р хуудасны зургийг энэ зургаар сольж байна. Өмнөхийг '↺ Өмнөх зураг' товчоор сэргээж болно. Үргэлжлүүлэх үү?")) return;
+
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Сайжруулж байна…";
+    status.textContent = "";
+
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      const input = await compressReferenceDataUrl(dataUrl, 2048, 0.9);
+
+      const enhanced = await fetchJsonWithRetry(
+        "/.netlify/functions/enhance-page-image",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-pin": adminPin },
+          body: JSON.stringify({ imageBase64: input }),
+        },
+        { onRetry: (attempt, max) => { btn.textContent = `Дахин оролдож байна… (${attempt}/${max})`; } }
+      );
+
+      const caption = (document.getElementById("pageText-0").value || "").trim() || order.storyPages[0].caption;
+      const appendData = await adminFetch("/.netlify/functions/append-order-page", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: order.id, pageIndex: 0, imageBase64: enhanced.imageBase64, caption }),
+      }).then((r) => r.json());
+
+      const idx = order.generatedPages.findIndex((p) => p.pageIndex === 0);
+      const entry = { pageIndex: 0, imageKey: `${order.id}:page0`, caption, hasPrevious: !!appendData.hasPrevious };
+      if (idx >= 0) order.generatedPages[idx] = entry; else order.generatedPages.push(entry);
+
+      imgWrap.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = enhanced.imageBase64;
+      imgWrap.appendChild(img);
+      const restoreBtn = document.getElementById("pageRestoreBtn-0");
+      if (restoreBtn) restoreBtn.hidden = !appendData.hasPrevious;
+
+      status.textContent = "✓ Сайжруулж хадгаллаа";
+      fileInput.value = "";
+    } catch (err) {
+      status.textContent = `Алдаа: ${err.message}`;
+      btn.disabled = false;
+    } finally {
+      btn.textContent = originalText;
+      if (!fileInput.files.length) btn.disabled = true;
     }
   });
 }
