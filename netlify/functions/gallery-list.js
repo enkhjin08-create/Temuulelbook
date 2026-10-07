@@ -26,30 +26,37 @@ exports.handler = async (event) => {
 
   try {
     const store = getGalleryStore();
+    const qs = event.queryStringParameters || {};
+    const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
+    const limit = Math.min(50, Math.max(1, parseInt(qs.limit, 10) || 12));
+
     const { blobs } = await store.list();
 
-    const keys = blobs.map((b) => b.key).filter((key) => !key.endsWith(":original"));
+    // Key нь `${Date.now()}-...` хэлбэртэй тул түлхүүрээр нь эрэмбэлэхэд
+    // цагийн дарааллаар гарна — metadata-г зөвхөн харуулах хуудасны
+    // зургуудад л уншина (өмнө нь бүх зургийнх унших байсан тул удаан байсан)
+    const keys = blobs
+      .map((b) => b.key)
+      .filter((key) => !key.endsWith(":original"))
+      .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+
+    const pageKeys = keys.slice(offset, offset + limit);
 
     const metaResults = await Promise.all(
-      keys.map(async (key) => {
+      pageKeys.map(async (key) => {
         try {
           const meta = await store.getMetadata(key);
           return { id: key, ...(meta && meta.metadata ? meta.metadata : {}) };
         } catch (e) {
-          return null; // тухайн нэг зурагны metadata уншигдахгүй бол алгасана
+          return null;
         }
       })
     );
 
-    const items = metaResults.filter(Boolean);
+    const limited = metaResults.filter(Boolean);
+    const items = { length: keys.length };
 
-    items.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-
-    // Зураг бүрийг тусад нь (PIN-тэй) дуудаж татдаг тул хэт олон бол
-    // маш удаан болдог — сүүлийн 30-ыг л буцаана
-    const limited = items.slice(0, 30);
-
-    return respond(200, { items: limited, total: items.length });
+    return respond(200, { items: limited, total: items.length, offset, hasMore: offset + limit < items.length });
   } catch (err) {
     return respond(500, { error: String(err && err.message ? err.message : err) });
   }

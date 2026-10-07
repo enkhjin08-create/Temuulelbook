@@ -110,6 +110,8 @@
     cursor: pointer;
   }
   .pin-error { color: var(--coral); font-size: 13px; margin-top: 10px; }
+  .gallery-pair-item img.is-loading { background: linear-gradient(90deg,#f1e9da,#f8f3ea,#f1e9da); background-size:200% 100%; animation: galShimmer 1.2s infinite; }
+  @keyframes galShimmer { from{background-position:200% 0} to{background-position:-200% 0} }
 </style>
 </head>
 <body>
@@ -180,7 +182,7 @@ async function tryEnter(pin) {
   if (!pin) return;
   pinError.hidden = true;
   try {
-    const res = await fetch("/.netlify/functions/gallery-list", { headers: { "x-admin-pin": pin } });
+    const res = await fetch("/.netlify/functions/gallery-list?offset=0&limit=12", { headers: { "x-admin-pin": pin } });
     if (res.status === 401) {
       pinError.textContent = "PIN буруу байна.";
       pinError.hidden = false;
@@ -197,26 +199,88 @@ async function tryEnter(pin) {
     pinGate.hidden = true;
     galleryMain.hidden = false;
     const data = await res.json();
+    galleryTotal = data.total || 0;
+    galleryLoaded = (data.items || []).length;
     renderGallery(data.items, data.total);
+    updateMoreButton();
   } catch (err) {
     pinError.textContent = `Алдаа: ${err.message}`;
     pinError.hidden = false;
   }
 }
 
-async function fetchImageDataUrl(id) {
-  const res = await fetch(`/.netlify/functions/gallery-image?id=${encodeURIComponent(id)}`, {
-    headers: { "x-admin-pin": adminPin },
-  });
-  if (!res.ok) throw new Error(`Зураг татахад алдаа гарлаа (${res.status})`);
-  const blob = await res.blob();
+// Нэг дор олон function дуудахгүйн тулд дараалалтай (4-өөр) татна
+let galleryTotal = 0;
+let galleryLoaded = 0;
+const imgQueue = [];
+let imgActive = 0;
+const IMG_CONCURRENCY = 4;
+
+function fetchImageObjectUrl(id) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
+    imgQueue.push({ id, resolve, reject });
+    pumpImgQueue();
   });
 }
+
+function pumpImgQueue() {
+  while (imgActive < IMG_CONCURRENCY && imgQueue.length) {
+    const job = imgQueue.shift();
+    imgActive++;
+    fetch(`/.netlify/functions/gallery-image?id=${encodeURIComponent(job.id)}`, {
+      headers: { "x-admin-pin": adminPin },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Зураг татахад алдаа гарлаа (${res.status})`);
+        return res.blob();
+      })
+      .then((blob) => job.resolve(URL.createObjectURL(blob)))
+      .catch(job.reject)
+      .finally(() => { imgActive--; pumpImgQueue(); });
+  }
+}
+
+function loadInto(img, id) {
+  img.classList.add("is-loading");
+  fetchImageObjectUrl(id)
+    .then((url) => { img.src = url; img.classList.remove("is-loading"); })
+    .catch(() => {
+      img.classList.remove("is-loading");
+      img.alt = "⚠ Ачаалж чадсангүй";
+      img.title = "Ачаалж чадсангүй — дарж дахин оролдох";
+      img.style.cursor = "pointer";
+      img.onclick = () => { img.onclick = null; img.style.cursor = ""; loadInto(img, id); };
+    });
+}
+
+const moreBtn = document.createElement("button");
+moreBtn.type = "button";
+moreBtn.textContent = "Цааш үзэх";
+moreBtn.style.cssText = "display:block;margin:20px auto;padding:10px 22px;border-radius:999px;border:0;background:#2E2247;color:#fff;font:inherit;cursor:pointer;";
+moreBtn.hidden = true;
+grid.parentElement.appendChild(moreBtn);
+
+function updateMoreButton() {
+  moreBtn.hidden = galleryLoaded >= galleryTotal;
+  moreBtn.disabled = false;
+  moreBtn.textContent = `Цааш үзэх (${galleryLoaded} / ${galleryTotal})`;
+}
+
+moreBtn.addEventListener("click", async () => {
+  moreBtn.disabled = true;
+  moreBtn.textContent = "Ачааллаж байна…";
+  try {
+    const res = await fetch(`/.netlify/functions/gallery-list?offset=${galleryLoaded}&limit=12`, { headers: { "x-admin-pin": adminPin } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Алдаа");
+    galleryLoaded += (data.items || []).length;
+    galleryTotal = data.total || galleryTotal;
+    renderGallery(data.items, 0);
+  } catch (err) {
+    alert(`Алдаа: ${err.message}`);
+  }
+  updateMoreButton();
+});
 
 function renderGallery(items, total) {
   loadingEl.hidden = true;
@@ -224,15 +288,6 @@ function renderGallery(items, total) {
   if (!items || items.length === 0) {
     emptyEl.hidden = false;
     return;
-  }
-
-  if (total && total > items.length) {
-    const note = document.createElement("p");
-    note.style.textAlign = "center";
-    note.style.color = "var(--plum-soft)";
-    note.style.fontSize = "13px";
-    note.textContent = `Сүүлийн ${items.length} / нийт ${total} зураг харагдаж байна`;
-    grid.parentElement.insertBefore(note, grid);
   }
 
   items.forEach((item) => {
@@ -282,10 +337,9 @@ function renderGallery(items, total) {
 
     grid.appendChild(card);
 
-    if (item.originalKey) {
-      fetchImageDataUrl(item.originalKey).then((url) => { origImg.src = url; }).catch(() => {});
-    }
-    fetchImageDataUrl(item.id).then((url) => { genImg.src = url; }).catch(() => {});
+    // Эхлээд generate хийсэн зураг, дараа нь эх зургийг татна
+    loadInto(genImg, item.id);
+    if (item.originalKey) loadInto(origImg, item.originalKey);
   });
 }
 </script>
