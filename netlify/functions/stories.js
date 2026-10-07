@@ -24,7 +24,20 @@ frame — the person will place it into a book layout themselves afterward.
 
 // pageIndex === 0 үед захиалагчийн бодит зургийг reference болгоно.
 // pageIndex > 0 үед өмнөх generate хийсэн зургийг reference болгоно (тогтвортой дүр).
-function buildPagePrompt({ childName, gender, sceneDescription, pageIndex, totalPages, allPageCaptions, hasPreviousReference }) {
+function buildOutfitBlock(hasOutfitReference) {
+  if (!hasOutfitReference) return "";
+  return `
+
+OUTFIT REFERENCE — the LAST attached image is a clothing reference (it may show
+only the garment, or another person wearing it). This OVERRIDES every earlier
+instruction about keeping the child's outfit identical to a photo or to a
+previous reference image: dress the illustrated child in THIS outfit — same
+garment types, colors, patterns/prints, and style. Use that image ONLY for the
+clothing; do NOT copy the face, hair, body or background of any person in it,
+and keep the child's own face, hairstyle and skin tone exactly as established.`;
+}
+
+function buildPagePrompt({ childName, gender, sceneDescription, pageIndex, totalPages, allPageCaptions, hasPreviousReference, hasOutfitReference }) {
   const isFirstPage = pageIndex === 0;
   const pageNum = pageIndex + 1;
   const genderEn = gender === "хүү" ? "boy" : "girl";
@@ -53,7 +66,7 @@ Scene for this page: ${sceneDescription}
 ${STYLE_GUIDE}
 
 This establishes the child's illustrated character design, which must stay
-identical across all ${totalPages} pages of this book.
+identical across all ${totalPages} pages of this book.${buildOutfitBlock(hasOutfitReference)}
 `.trim();
   }
 
@@ -108,7 +121,7 @@ ${STYLE_GUIDE}
 
 The final image should feel like page ${pageNum} of the same printed children's
 book — same characters, same style, and a scene that visually makes sense as the
-direct continuation of the story so far.
+direct continuation of the story so far.${buildOutfitBlock(hasOutfitReference)}
 `.trim();
 }
 

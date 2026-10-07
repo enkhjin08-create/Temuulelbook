@@ -1431,6 +1431,13 @@ function renderPagesList(order) {
           <button class="btn-page-restore" id="pageRestoreBtn-${i}" title="Өмнөх зургийг сэргээх" ${generated && generated.hasPrevious ? "" : "hidden"}>↺ Өмнөх зураг</button>
           <span class="page-edit-status" id="pageStatus-${i}"></span>
         </div>
+        ${i <= 1 ? `
+        <div class="page-edit-actions" style="margin-top:8px;align-items:center;">
+          <label style="font-size:13px;">👗 Хувцасны reference:</label>
+          <input type="file" accept="image/*" id="outfitFileInput-${i}" class="page-edit-file-input" />
+          <img id="outfitPreview-${i}" alt="" hidden style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid #ddd;" />
+          <button class="btn-page-restore" id="outfitClearBtn-${i}" type="button" hidden>✕ Арилгах</button>
+        </div>` : ""}
         ${i === 0 ? `
         <div class="page-edit-actions" style="margin-top:8px;">
           <input type="file" accept="image/*" id="enhanceFileInput" class="page-edit-file-input" />
@@ -1441,6 +1448,7 @@ function renderPagesList(order) {
     list.appendChild(card);
 
     if (i === 0) wireEnhanceFirstPage(order);
+    if (i <= 1) wireOutfitReference(order, i);
 
     document.getElementById(`pageCopyBtn-${i}`).addEventListener("click", () => copyOnePageText(i));
     document.getElementById(`pageRestoreBtn-${i}`).addEventListener("click", () => restorePageAt(order, i));
@@ -1461,6 +1469,47 @@ function renderPagesList(order) {
     } else {
       btn.addEventListener("click", () => generatePageAt(order, i));
     }
+  });
+}
+
+// 1-2-р хуудасны хувцасны reference зураг (зөвхөн энэ session-д санагдана;
+// "Зурах / Дахин зурах" дарахад генерэйт хүсэлтэд хавсарна)
+const outfitReferences = {}; // pageIndex -> data URL
+
+function wireOutfitReference(order, i) {
+  const input = document.getElementById(`outfitFileInput-${i}`);
+  const preview = document.getElementById(`outfitPreview-${i}`);
+  const clearBtn = document.getElementById(`outfitClearBtn-${i}`);
+  const key = `${order.id}:${i}`;
+
+  const show = (dataUrl) => {
+    if (dataUrl) {
+      preview.src = dataUrl;
+      preview.hidden = false;
+      clearBtn.hidden = false;
+    } else {
+      preview.hidden = true;
+      clearBtn.hidden = true;
+      input.value = "";
+    }
+  };
+  show(outfitReferences[key]);
+
+  input.addEventListener("change", async () => {
+    const file = input.files[0];
+    if (!file) return;
+    const dataUrl = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+    outfitReferences[key] = await compressReferenceDataUrl(dataUrl, 1024, 0.85);
+    show(outfitReferences[key]);
+  });
+  clearBtn.addEventListener("click", () => {
+    delete outfitReferences[key];
+    show(null);
   });
 }
 
@@ -1596,6 +1645,7 @@ async function generatePageAt(order, pageIndex) {
           gender: order.gender,
           photoBase64: referenceImageBase64,
           previousPageImageBase64,
+          outfitImageBase64: outfitReferences[`${order.id}:${pageIndex}`] || undefined,
           pageIndex,
           totalPages: order.storyPages.length,
           sceneDescription: text,

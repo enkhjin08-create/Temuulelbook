@@ -55,7 +55,7 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { childName, photoBase64, sceneDescription, gender, requestId, allPageCaptions, previousPageImageBase64 } = body;
+  const { childName, photoBase64, sceneDescription, gender, requestId, allPageCaptions, previousPageImageBase64, outfitImageBase64 } = body;
   const pageIndex = Number.isInteger(body.pageIndex) ? body.pageIndex : 0;
   const totalPages = Number.isInteger(body.totalPages) ? body.totalPages : 1;
 
@@ -92,14 +92,27 @@ exports.handler = async (event) => {
     prevRawBase64 = prevMatch ? prevMatch[2] : previousPageImageBase64;
   }
 
+  // Заавал биш: хувцасны reference зураг (admin 1-2-р хуудсанд оруулдаг)
+  let outfitMimeType, outfitRawBase64;
+  if (outfitImageBase64 && typeof outfitImageBase64 === "string") {
+    const outfitMatch = outfitImageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+    outfitMimeType = outfitMatch ? outfitMatch[1] : "image/jpeg";
+    outfitRawBase64 = outfitMatch ? outfitMatch[2] : outfitImageBase64;
+  }
+
   const prompt = buildPagePrompt({
     childName, gender, sceneDescription, pageIndex, totalPages, allPageCaptions,
     hasPreviousReference: !!prevRawBase64,
+    hasOutfitReference: !!outfitRawBase64,
   });
 
   const imageParts = [{ inlineData: { mimeType, data: rawBase64 } }];
   if (prevRawBase64) {
     imageParts.push({ inlineData: { mimeType: prevMimeType, data: prevRawBase64 } });
+  }
+  // Хувцасны reference үргэлж хамгийн сүүлийн зураг байна
+  if (outfitRawBase64) {
+    imageParts.push({ inlineData: { mimeType: outfitMimeType, data: outfitRawBase64 } });
   }
 
   try {
