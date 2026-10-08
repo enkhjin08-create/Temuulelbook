@@ -991,6 +991,10 @@ function renderOrderDetail(order) {
             <input type="range" id="printStrokeInput" min="0" max="15" step="1" value="6" />
           </label>
           <label class="print-text-settings-row">
+            Зургийн илүү хэсэг (bleed): <span id="printBleedValue">3</span> мм <small>(зүсэлтээс гадагш тусгалаар нэмэгдэнэ; 0 = байхгүй)</small>
+            <input type="range" id="printBleedInput" min="0" max="25" step="1" value="3" />
+          </label>
+          <label class="print-text-settings-row">
             Зүсэлтээс текст хүртэлх аюулгүй зай: <span id="printSafeValue">20</span> мм <small>(дотор хуудас 17×17см; улаан тасархай = зүсэлт, ногоон = текстийн бүс)</small>
             <input type="range" id="printSafeInput" min="8" max="35" step="1" value="20" />
           </label>
@@ -1992,6 +1996,7 @@ const PRINT_FONT_FAMILY = "IsamiRi Display";
 const PRINT_TEXT_SETTINGS = {
   fontSize: 60,
   color: "#2E2247",
+  bleedMm: 3, // зүсэлтээс гадуур нэмэх зургийн илүү хэсэг (мм)
   safeMarginMm: 20, // зүсэлтийн хүрээнээс текст хүртэлх зай (мм)
   strokePercent: 6, // гадуурх цагаан stroke-ийн зузаан (фонтын хэмжээний %); 0 = stroke үгүй
 };
@@ -2110,6 +2115,15 @@ function wirePrintTextSettings(order) {
   sizeInput.value = String(PRINT_TEXT_SETTINGS.fontSize);
   sizeValue.textContent = String(PRINT_TEXT_SETTINGS.fontSize);
   colorInput.value = PRINT_TEXT_SETTINGS.color;
+
+  const bleedInput = document.getElementById("printBleedInput");
+  const bleedValue = document.getElementById("printBleedValue");
+  bleedInput.value = String(PRINT_TEXT_SETTINGS.bleedMm);
+  bleedValue.textContent = String(PRINT_TEXT_SETTINGS.bleedMm);
+  bleedInput.addEventListener("input", () => {
+    PRINT_TEXT_SETTINGS.bleedMm = Number(bleedInput.value);
+    bleedValue.textContent = bleedInput.value;
+  });
 
   const safeInput = document.getElementById("printSafeInput");
   const safeValue = document.getElementById("printSafeValue");
@@ -2336,7 +2350,7 @@ async function buildPrintPanels(order, onProgress) {
       const fs = getCaptionFontSizes();
       printDrawCenteredText(
         ctx, captionByNumber[10] || "", leftW / 2,
-        leftH - Math.max(PRINT_PAGE10_TEXT_BOTTOM_OFFSET, printTrimInsetPx(leftH) + (PRINT_TEXT_SETTINGS.safeMarginMm + 12) * PRINT_PX_PER_MM),
+        leftH - Math.max(PRINT_PAGE10_TEXT_BOTTOM_OFFSET, printTrimInsetPx(leftH) + (PRINT_TEXT_SETTINGS.safeMarginMm + 14) * PRINT_PX_PER_MM),
         Math.min(PRINT_PAGE10_TEXT_MAX_WIDTH, printSafeTextWidth(leftW)), PRINT_PAGE10_TEXT_MAX_HEIGHT, fs.max, fs.min
       );
     }
@@ -2375,6 +2389,38 @@ async function buildPrintPanels(order, onProgress) {
   return panels;
 }
 
+// Панелийн гадна талд (оёдлын тал биш) тусгал (mirror) хэлбэрээр "bleed"
+// нэмнэ — зүсэлт төлөвлөснөөс 2-3см илүү орсон ч цагаан хоосон хэсэг
+// гарахгүй. spineSide: "right" (зүүн панел) эсвэл "left" (баруун панел).
+function printDrawPanelWithBleed(ctx, panel, x0, y0, spineSide) {
+  const E = Math.min(
+    Math.round(PRINT_TEXT_SETTINGS.bleedMm * PRINT_PX_PER_MM),
+    290 // хуудасны захын зай (~25мм) ба текстээс хол байлгах хязгаар
+  );
+  if (E > 0) {
+    const w = panel.width, h = panel.height;
+    for (let iy = -1; iy <= 1; iy++) {
+      for (let ix = -1; ix <= 1; ix++) {
+        if (ix === 0 && iy === 0) continue;
+        if ((spineSide === "right" && ix === 1) || (spineSide === "left" && ix === -1)) continue;
+        const tx = x0 + ix * w, ty = y0 + iy * h;
+        const cx = ix === -1 ? x0 - E : ix === 0 ? x0 : x0 + w;
+        const cy = iy === -1 ? y0 - E : iy === 0 ? y0 : y0 + h;
+        const cw = ix === 0 ? w : E, ch = iy === 0 ? h : E;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(cx, cy, cw, ch);
+        ctx.clip();
+        ctx.translate(tx + (ix !== 0 ? w : 0), ty + (iy !== 0 ? h : 0));
+        ctx.scale(ix !== 0 ? -1 : 1, iy !== 0 ? -1 : 1);
+        ctx.drawImage(panel, 0, 0);
+        ctx.restore();
+      }
+    }
+  }
+  ctx.drawImage(panel, x0, y0);
+}
+
 function composePrintSide(panels, leftKey, rightKey) {
   const canvas = document.createElement("canvas");
   canvas.width = PRINT_CANVAS_SIZE.w;
@@ -2382,8 +2428,8 @@ function composePrintSide(panels, leftKey, rightKey) {
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(panels[leftKey], PRINT_LEFT_PANEL.x0, PRINT_LEFT_PANEL.y0);
-  ctx.drawImage(panels[rightKey], PRINT_RIGHT_PANEL.x0, PRINT_RIGHT_PANEL.y0);
+  printDrawPanelWithBleed(ctx, panels[leftKey], PRINT_LEFT_PANEL.x0, PRINT_LEFT_PANEL.y0, "right");
+  printDrawPanelWithBleed(ctx, panels[rightKey], PRINT_RIGHT_PANEL.x0, PRINT_RIGHT_PANEL.y0, "left");
   return canvas;
 }
 
