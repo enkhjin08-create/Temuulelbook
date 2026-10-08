@@ -991,6 +991,10 @@ function renderOrderDetail(order) {
             <input type="range" id="printStrokeInput" min="0" max="15" step="1" value="6" />
           </label>
           <label class="print-text-settings-row">
+            Зүсэлтээс текст хүртэлх аюулгүй зай: <span id="printSafeValue">20</span> мм <small>(дотор хуудас 17×17см; улаан тасархай = зүсэлт, ногоон = текстийн бүс)</small>
+            <input type="range" id="printSafeInput" min="8" max="35" step="1" value="20" />
+          </label>
+          <label class="print-text-settings-row">
             Текстийн өнгө:
             <input type="color" id="printTextColorInput" value="#2e2247" />
           </label>
@@ -1966,6 +1970,19 @@ const PRINT_CAPTION_MAX_HEIGHT = 620;
 const PRINT_DEDICATION_MAX_WIDTH = 1450;
 const PRINT_DEDICATION_MAX_HEIGHT = 500;
 
+// Номын дотор хуудас бэлэн болоход 17×17см болтол зүсэгдэнэ (панел ~185мм).
+// Зүсэлт + оёдол/нугалаа дээр үг алдагдахгүйн тулд текстийг зүсэлтийн
+// хүрээнээс "аюулгүй зай" (мм) дотогш байрлуулна.
+const PRINT_PX_PER_MM = 300 / 25.4;
+const PRINT_TRIM_MM = 170;
+function printTrimInsetPx(panelSize) {
+  return Math.max(0, (panelSize - PRINT_TRIM_MM * PRINT_PX_PER_MM) / 2);
+}
+function printSafeTextWidth(panelSize) {
+  const w = PRINT_TRIM_MM * PRINT_PX_PER_MM - 2 * PRINT_TEXT_SETTINGS.safeMarginMm * PRINT_PX_PER_MM;
+  return Math.max(400, Math.round(w));
+}
+
 const PRINT_STROKE_COLOR = "#FFFFFF";
 const PRINT_FONT_FAMILY = "IsamiRi Display";
 
@@ -1975,6 +1992,7 @@ const PRINT_FONT_FAMILY = "IsamiRi Display";
 const PRINT_TEXT_SETTINGS = {
   fontSize: 60,
   color: "#2E2247",
+  safeMarginMm: 20, // зүсэлтийн хүрээнээс текст хүртэлх зай (мм)
   strokePercent: 6, // гадуурх цагаан stroke-ийн зузаан (фонтын хэмжээний %); 0 = stroke үгүй
 };
 
@@ -2068,8 +2086,20 @@ async function renderPrintPreview(order) {
   const fs = getCaptionFontSizes();
   printDrawCenteredText(
     ctx, sampleCaption, size / 2, PRINT_CAPTION_CENTER_Y - PRINT_LEFT_PANEL.y0,
-    PRINT_CAPTION_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, fs.max, fs.min
+    Math.min(PRINT_CAPTION_MAX_WIDTH, printSafeTextWidth(size)), PRINT_CAPTION_MAX_HEIGHT, fs.max, fs.min
   );
+
+  // Зөвхөн preview-д: зүсэлтийн хүрээ (улаан тасархай) ба текстийн аюулгүй бүс (ногоон)
+  const inset = printTrimInsetPx(size);
+  const safe = PRINT_TEXT_SETTINGS.safeMarginMm * PRINT_PX_PER_MM;
+  ctx.save();
+  ctx.lineWidth = 4;
+  ctx.setLineDash([24, 16]);
+  ctx.strokeStyle = "rgba(220,50,50,0.9)";
+  ctx.strokeRect(inset, inset, size - 2 * inset, size - 2 * inset);
+  ctx.strokeStyle = "rgba(40,160,80,0.9)";
+  ctx.strokeRect(inset + safe, inset + safe, size - 2 * (inset + safe), size - 2 * (inset + safe));
+  ctx.restore();
 }
 
 function wirePrintTextSettings(order) {
@@ -2080,6 +2110,16 @@ function wirePrintTextSettings(order) {
   sizeInput.value = String(PRINT_TEXT_SETTINGS.fontSize);
   sizeValue.textContent = String(PRINT_TEXT_SETTINGS.fontSize);
   colorInput.value = PRINT_TEXT_SETTINGS.color;
+
+  const safeInput = document.getElementById("printSafeInput");
+  const safeValue = document.getElementById("printSafeValue");
+  safeInput.value = String(PRINT_TEXT_SETTINGS.safeMarginMm);
+  safeValue.textContent = String(PRINT_TEXT_SETTINGS.safeMarginMm);
+  safeInput.addEventListener("input", () => {
+    PRINT_TEXT_SETTINGS.safeMarginMm = Number(safeInput.value);
+    safeValue.textContent = safeInput.value;
+    renderPrintPreview(order);
+  });
 
   const strokeInput = document.getElementById("printStrokeInput");
   const strokeValue = document.getElementById("printStrokeValue");
@@ -2266,7 +2306,7 @@ async function buildPrintPanels(order, onProgress) {
       const fs = getCaptionFontSizes();
       printDrawCenteredText(
         ctx, captionByNumber[n] || "", leftW / 2, PRINT_CAPTION_CENTER_Y - PRINT_LEFT_PANEL.y0,
-        PRINT_CAPTION_MAX_WIDTH, PRINT_CAPTION_MAX_HEIGHT, fs.max, fs.min
+        Math.min(PRINT_CAPTION_MAX_WIDTH, printSafeTextWidth(leftW)), PRINT_CAPTION_MAX_HEIGHT, fs.max, fs.min
       );
     }
     panels[`text_${n}`] = canvas;
@@ -2295,8 +2335,9 @@ async function buildPrintPanels(order, onProgress) {
     {
       const fs = getCaptionFontSizes();
       printDrawCenteredText(
-        ctx, captionByNumber[10] || "", leftW / 2, leftH - PRINT_PAGE10_TEXT_BOTTOM_OFFSET,
-        PRINT_PAGE10_TEXT_MAX_WIDTH, PRINT_PAGE10_TEXT_MAX_HEIGHT, fs.max, fs.min
+        ctx, captionByNumber[10] || "", leftW / 2,
+        leftH - Math.max(PRINT_PAGE10_TEXT_BOTTOM_OFFSET, printTrimInsetPx(leftH) + (PRINT_TEXT_SETTINGS.safeMarginMm + 12) * PRINT_PX_PER_MM),
+        Math.min(PRINT_PAGE10_TEXT_MAX_WIDTH, printSafeTextWidth(leftW)), PRINT_PAGE10_TEXT_MAX_HEIGHT, fs.max, fs.min
       );
     }
     panels["combined_10"] = canvas;
@@ -2316,7 +2357,7 @@ async function buildPrintPanels(order, onProgress) {
       const fs = getDedicationFontSizes();
       printDrawCenteredText(
         ctx, printSplitSentences(order.coverDedication), rightW / 2, Math.round(rightH * 0.62),
-        PRINT_DEDICATION_MAX_WIDTH, PRINT_DEDICATION_MAX_HEIGHT, fs.max, fs.min,
+        Math.min(PRINT_DEDICATION_MAX_WIDTH, printSafeTextWidth(rightW)), PRINT_DEDICATION_MAX_HEIGHT, fs.max, fs.min,
         { background: { color: "rgba(255,255,255,0.82)" } }
       );
       // Хамгийн доор он — PDF-ийг хэвлэхээр гаргаж буй (одоогийн) оныг автоматаар. Зөвхөн нүүр хуудсанд.
@@ -2324,7 +2365,7 @@ async function buildPrintPanels(order, onProgress) {
       const yfs = Math.round(fs.max * 0.7);
       printDrawCenteredText(
         ctx, `${year} он`, rightW / 2, Math.round(rightH * 0.9),
-        PRINT_DEDICATION_MAX_WIDTH, yfs * 2, yfs, Math.round(yfs * 0.5),
+        Math.min(PRINT_DEDICATION_MAX_WIDTH, printSafeTextWidth(rightW)), yfs * 2, yfs, Math.round(yfs * 0.5),
         { background: { color: "rgba(255,255,255,0.82)" } }
       );
     }
