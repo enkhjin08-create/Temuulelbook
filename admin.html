@@ -446,6 +446,7 @@
     margin: 0;
     line-height: 1.4;
   }
+  .page-edit-field-label { display:block; font-size:12px; color:var(--plum-soft, #8a7fa0); margin:6px 0 2px; font-weight:600; }
   .page-edit-textarea {
     width: 100%;
     font-family: var(--font-body);
@@ -1432,7 +1433,11 @@ function renderPagesList(order) {
         ${generated ? "" : '<div class="page-edit-placeholder">Хараахан зураагүй</div>'}
       </div>
       <div class="page-edit-body">
-        <textarea class="page-edit-textarea" id="pageText-${i}">${escapeHtml(generated ? generated.caption : storyPage.caption)}</textarea>
+        <label class="page-edit-field-label">🎨 Зургийн тайлбар (зөвхөн зураг generate хийхэд)</label>
+        <textarea class="page-edit-textarea" id="pageText-${i}">${escapeHtml(generated ? (generated.scene || generated.caption || storyPage.caption) : storyPage.caption)}</textarea>
+        <label class="page-edit-field-label">🖨 Хэвлэх текст (PDF дээр яг ингэж гарна)</label>
+        <textarea class="page-edit-textarea" id="printText-${i}" style="min-height:56px;">${escapeHtml(generated ? (generated.caption || storyPage.caption) : storyPage.caption)}</textarea>
+        <span class="page-edit-status" id="printTextStatus-${i}"></span>
         <div class="page-edit-actions">
           <button class="btn-page-generate" id="pageBtn-${i}">${generated ? "🔄 Дахин зурах" : "Зурах"}</button>
           <button class="btn-page-copy" id="pageCopyBtn-${i}" title="Энэ хуудасны текстийг хуулах">📋</button>
@@ -1455,6 +1460,7 @@ function renderPagesList(order) {
     `;
     list.appendChild(card);
 
+    wirePrintTextSave(order, i);
     if (i === 0) wireEnhanceFirstPage(order);
     if (i <= 1) wireOutfitReference(order, i);
 
@@ -1476,6 +1482,39 @@ function renderPagesList(order) {
       document.getElementById(`pageStatus-${i}`).textContent = "Эхлээд 1-р хуудсыг зурна уу";
     } else {
       btn.addEventListener("click", () => generatePageAt(order, i));
+    }
+  });
+}
+
+// Хэвлэх текстийг (PDF-д гарах) зургийн тайлбараас тусад нь хадгална
+function getPrintTextFor(order, i) {
+  const el = document.getElementById(`printText-${i}`);
+  if (el) return el.value.trim();
+  const g = order.generatedPages.find((p) => p.pageIndex === i);
+  return (g && g.caption) || order.storyPages[i].caption || "";
+}
+
+function wirePrintTextSave(order, i) {
+  const el = document.getElementById(`printText-${i}`);
+  const st = document.getElementById(`printTextStatus-${i}`);
+  if (!el) return;
+  el.addEventListener("change", async () => {
+    const caption = el.value.trim();
+    st.textContent = "Хадгалж байна…";
+    try {
+      const res = await adminFetch("/.netlify/functions/set-page-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: order.id, pageIndex: i, caption }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Алдаа гарлаа.");
+      const g = order.generatedPages.find((p) => p.pageIndex === i);
+      if (g) g.caption = caption;
+      else order.storyPages[i].caption = caption;
+      st.textContent = "✓ Хэвлэх текст хадгалагдлаа";
+    } catch (err) {
+      st.textContent = `Алдаа: ${err.message}`;
     }
   });
 }
@@ -1561,15 +1600,15 @@ function wireEnhanceFirstPage(order) {
         { onRetry: (attempt, max) => { btn.textContent = `Дахин оролдож байна… (${attempt}/${max})`; } }
       );
 
-      const caption = (document.getElementById("pageText-0").value || "").trim() || order.storyPages[0].caption;
+      const caption = getPrintTextFor(order, 0) || order.storyPages[0].caption;
       const appendData = await adminFetch("/.netlify/functions/append-order-page", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: order.id, pageIndex: 0, imageBase64: enhanced.imageBase64, caption }),
+        body: JSON.stringify({ id: order.id, pageIndex: 0, imageBase64: enhanced.imageBase64, caption, scene: (document.getElementById("pageText-0").value || "").trim() }),
       }).then((r) => r.json());
 
       const idx = order.generatedPages.findIndex((p) => p.pageIndex === 0);
-      const entry = { pageIndex: 0, imageKey: `${order.id}:page0`, caption, hasPrevious: !!appendData.hasPrevious };
+      const entry = { pageIndex: 0, imageKey: `${order.id}:page0`, caption, scene: (document.getElementById("pageText-0").value || "").trim(), hasPrevious: !!appendData.hasPrevious };
       if (idx >= 0) order.generatedPages[idx] = entry; else order.generatedPages.push(entry);
 
       imgWrap.innerHTML = "";
@@ -1638,8 +1677,7 @@ async function generatePageAt(order, pageIndex) {
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   const allPageCaptions = order.storyPages.map((sp, i) => {
-    const ta = document.getElementById(`pageText-${i}`);
-    return ta ? ta.value.trim() : sp.caption;
+    return getPrintTextFor(order, i) || sp.caption;
   });
 
   try {
@@ -1671,12 +1709,12 @@ async function generatePageAt(order, pageIndex) {
     const appendData = await adminFetch("/.netlify/functions/append-order-page", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: order.id, pageIndex, imageBase64: genData.imageBase64, caption: text }),
+      body: JSON.stringify({ id: order.id, pageIndex, imageBase64: genData.imageBase64, caption: getPrintTextFor(order, pageIndex) || text, scene: text }),
     }).then((r) => r.json());
 
     // Дараагийн давталтад ашиглагдахын тулд order объектыг локалиар шинэчилнэ
     const existingIdx = order.generatedPages.findIndex((p) => p.pageIndex === pageIndex);
-    const entry = { pageIndex, imageKey: `${order.id}:page${pageIndex}`, caption: text, hasPrevious: !!appendData.hasPrevious };
+    const entry = { pageIndex, imageKey: `${order.id}:page${pageIndex}`, caption: getPrintTextFor(order, pageIndex) || text, scene: text, hasPrevious: !!appendData.hasPrevious };
     if (existingIdx >= 0) order.generatedPages[existingIdx] = entry;
     else order.generatedPages.push(entry);
 
@@ -1795,7 +1833,7 @@ async function generateAllRemaining(order) {
 }
 
 async function copyOnePageText(pageIndex) {
-  const ta = document.getElementById(`pageText-${pageIndex}`);
+  const ta = document.getElementById(`printText-${pageIndex}`) || document.getElementById(`pageText-${pageIndex}`);
   const status = document.getElementById(`pageStatus-${pageIndex}`);
   if (!ta) return;
 

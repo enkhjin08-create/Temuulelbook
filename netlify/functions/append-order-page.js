@@ -4,7 +4,8 @@
 // захиалгын мэдээлэлд нэмж хадгална. Хамгийн сүүлийн хуудас бол статусыг
 // автоматаар "completed" болгоно.
 //
-// Хүлээн авах (POST JSON): { id, pageIndex, imageBase64, caption }
+// Хүлээн авах (POST JSON): { id, pageIndex, imageBase64, caption, scene }
+//   caption = хэвлэгдэх текст, scene = зураг generate хийсэн тайлбар (заавал биш)
 // Header: x-admin-pin
 
 const { getStore } = require("@netlify/blobs");
@@ -34,7 +35,7 @@ exports.handler = async (event) => {
     return respond(400, { error: "Хүсэлтийн бүтэц буруу байна (JSON биш)." });
   }
 
-  const { id, imageBase64, caption } = body;
+  const { id, imageBase64, caption, scene } = body;
   const pageIndex = Number.isInteger(body.pageIndex) ? body.pageIndex : null;
 
   if (!id) return respond(400, { error: "id шаардлагатай." });
@@ -77,7 +78,7 @@ exports.handler = async (event) => {
     // Зургийг тусад нь Blobs-д хадгалж, зөвхөн key-г л order-д үлдээнэ
     await saveOrderImage(imageKey, imageBase64);
 
-    const pageEntry = { pageIndex, imageKey, caption: caption || "", hasPrevious };
+    const pageEntry = { pageIndex, imageKey, caption: caption || "", scene: typeof scene === "string" ? scene : "", hasPrevious };
     if (existingIdx >= 0) {
       order.generatedPages[existingIdx] = pageEntry;
     } else {
